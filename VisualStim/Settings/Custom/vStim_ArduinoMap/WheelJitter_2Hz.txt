@@ -1,0 +1,17 @@
+sstimType            4
+scyclesPerSecond     2
+strialDuration       10
+stempFreq            15
+svisPulseDur         32
+saudioPulseDur       3
+saudioAmp            0.25
+sarduinoPulseDur     48
+sarduinoStimAmp      5
+sarduinoStimDur      0.1
+sarduinoStimFreq     20
+suseAudioNoise       0
+suseVisualNoise      0
+svisTriggerSize      50
+sBackground          0
+sBackgroundNoise     1
+sBaselineDur         2

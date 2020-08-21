@@ -1,0 +1,2 @@
+sFrameWdith     50
+sCrossWidth     50

@@ -1,0 +1,14 @@
+sbarWidth            10
+ssquareSize          5
+sbarStyle            3
+suseAperture         1
+stempFreq            5
+strialDuration       22
+sshowVisTrigger      1
+svisTriggerSize      40
+sbackground          0
+sbaselineDur         3
+scyclesPerSecond     0.5
+suseSpatialNoise     0
+fbarOrient           [0  1]
+fbarDirection        [0  1]

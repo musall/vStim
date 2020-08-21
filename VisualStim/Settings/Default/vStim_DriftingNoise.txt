@@ -1,0 +1,14 @@
+sUseFullField            1
+sBarWidth            10
+scyclesPerSecond     0.5
+stempFreq            5
+sStimDuration        22
+sShowVisTrigger      1
+sVisTriggerSize      40
+sWhiteBar            0
+sUseSpherical        0
+sUseAperture         1
+sBackground          0.5
+sBaselineDur         3
+fBarOrient           [0  1]
+fBarDirection        [0  1]

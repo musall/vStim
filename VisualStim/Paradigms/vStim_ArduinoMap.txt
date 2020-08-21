@@ -1,0 +1,9 @@
+sstimType            6
+scyclesPerSecond     1
+sstimDuration        11
+spulseDuration       0.032
+stempFreq            15
+suseAudioNoise       1
+suseVisualNoise      1
+svisTriggerSize      50
+sBackground          0

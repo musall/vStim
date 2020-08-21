@@ -1,0 +1,9 @@
+ssquareSize         4
+ssquareSpace        20
+sstimDuration       250
+strialDuration      30
+srotateScreen       0
+sshowVisTrigger     1
+svisTriggerSize     50
+sbaselineDur        0
+sBackground         0.5

@@ -1,0 +1,13 @@
+sBarWidth            10
+sBarStyle            3
+sSquareSize          3
+sUseAperture         1
+stempFreq            5
+sStimDuration        22
+sShowVisTrigger      1
+sVisTriggerSize      40
+sBackground          0
+sBaselineDur         3
+scyclesPerSecond     0.5
+fBarOrient           [0  1]
+fBarDirection        [0  1]
