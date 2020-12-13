@@ -195,7 +195,7 @@ function [timeStamps,barShift,FrameCounts] = RunTrial(cTrial)
     absStimTime = sTime + StimDuration;
     
     while(cTime < absStimTime)
-        if tCnt > length(barShift); 
+        if tCnt > length(barShift)
             tCnt = tCnt-length(barShift); %reset texture count if end of screen is reached
         end
         

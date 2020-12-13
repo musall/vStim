@@ -1,7 +1,7 @@
-function vStim_DriftingGradients(handles)
-%code to produce drifting gradients. UseAperture creates a circular
-%aperture. Otherwise makes a full field stimulus. 
-%Talk to Simon for details.
+function vStim_MultimodalStim(handles)
+% code to produce sensory stimuli for multisensory stimulation.
+% UseAperture creates a circular aperture. Otherwise makes a full field stimulus. 
+% This paradigm needs a detected analog outout module. Talk to Simon for details.
 
 %% Isolate all relevant variables from MainGUI
 StatNames = {}; FlexNames = {};
@@ -47,7 +47,7 @@ end
 PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 
-Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference', 'SkipSyncTests', 0);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 HideCursor(window);
@@ -56,7 +56,7 @@ handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 handles.ScreenRes.String = [num2str(screenXpixels) ' x ' num2str(screenYpixels)];
 Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); % Enable alpha blending
 ifi=Screen('GetFlipInterval', window); %refresh rate
-StimData.Paradigm = 'vStim_DriftingGradients'; %name of the paradigm
+StimData.Paradigm = 'vStim?MultimodalStim'; %name of the paradigm
 StimData.VarNames = BasicVarNames; %basic variable names
 StimData.VarVals(:,1:str2double(handles.NrTrials.String)) = BasicVarVals(:,1:str2double(handles.NrTrials.String)); %basic variable values
 StimData.ScreenSize = textscan(handles.ScreenSize.String,'%f%c%f'); %get screen size in cm
@@ -99,7 +99,7 @@ for iCases = 1:size(FlexCases,2)
     end
     x = meshgrid(-texsize:texsize + p, 1);
     grating= 127 + 127*cos(fr*x);
-    gratingtex(iCases)=Screen('MakeTexture', window, grating);
+    gratingtex(iCases) = Screen('MakeTexture', window, grating);
 end
 
 if any(UseApertures == 0)
@@ -113,12 +113,10 @@ for iCases = 1:length(ApertureSizes)
     mask(:, :, 2) = ~(C<=C(texsize+1,end))*255;
     masktex(iCases)=Screen('MakeTexture', window, mask);
 end
-    
-%% At this point the code should be ready to start stimulation. Wait for confirmation from user. 
-%make sure trigger lines are set to false if serial port is present
-if ~isempty(handles.SerialPort)
-    IOPort('ConfigureSerialPort',handles.SerialPort,'DTR=0,RTS=0'); %first line is one during stimulation, second line goes on and off on each frame switch
-end
+
+%% load stimuli to analog output module
+handles.WavePlayer.loadWaveform(1,ones(1,5000));
+handles.WavePlayer.loadWaveform(2,rand(1,5000));
 
 %% Run paradigm
 if isfield(handles,'DataPath')
@@ -146,10 +144,6 @@ for iTrials = 1:str2double(handles.NrTrials.String)
         end
         pause(str2double(handles.ITI.String)); %inter-trial interval
     else
-        %produce triggers if serial port is present
-        if ~isempty(handles.SerialPort)
-            IOPort('ConfigureSerialPort',handles.SerialPort,'DTR=0,RTS=0'); %first line is one during stimulation, second line goes on and off on each frame switch
-        end
         save([dPath handles.SubjectName.String '_' date '_' handles.ExperimentNr.String '_settings.mat'],'StimData');
     end
 end
@@ -204,7 +198,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     sTime = Screen('Flip', window); % Sync start time to the vertical retrace
     cTime = sTime; %current time equals start time
     absStimTime = sTime + StimDuration;     
-
+    
     while(cTime < absStimTime)
         
         xoffset = mod(Cnt*pixPerFrame,SpatialFreq);
@@ -229,11 +223,11 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         
         %show frame
         cTime = Screen('Flip', window, cTime + 0.5 * ifi);
-        timeStamps(Cnt) = cTime; 
+        timeStamps(Cnt) = cTime;
         
-        %produce triggers if serial port is present
-        if ~isempty(handles.SerialPort)
-            IOPort('ConfigureSerialPort',handles.SerialPort,['DTR=1,RTS=' int2str(rem(Cnt,2))]); %first line is one during stimulation, second line goes on and off on each frame switch
+        if Cnt == 1
+            handles.WavePlayer.play(1,1);
+            handles.WavePlayer.play(2,2);
         end
 
         [keyIsDown, ~, keyCode, ~] = KbCheck;
@@ -244,12 +238,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         end
     end
     
-    %produce triggers if serial port is present
-    if ~isempty(handles.SerialPort)
-        IOPort('ConfigureSerialPort',handles.SerialPort,'DTR=0,RTS=0'); %first line is one during stimulation, second line goes on and off on each frame switch
-    end
-    
-     %bank screen after stimulus presentation
+     %blank screen after stimulus presentation
     Screen('FillRect', window,Background);
     Screen('Flip', window); %
     Priority(0);

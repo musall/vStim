@@ -1,6 +1,6 @@
 sSpatialFreq        0.05
 sStimAngle          0
-sUseAperture        0
+sUseAperture        1
 sApertureSize       50
 sBackground         0.5
 sStimDuration       10
@@ -10,4 +10,4 @@ sVisTriggerSize     50
 sStimType           4
 sxPosition          0
 syPosition          0
-sTemporalFreq       5
+sTemporalFreq       1

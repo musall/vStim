@@ -21,7 +21,7 @@ for iVars = 1:size(handles.FlexibleVariableNames.String,1)
 end
 
 BasicVarNames = [StatNames FlexNames];  %all names basic variables that are required for correct function
-FlexCases = CombVec(FlexVals{:}); %get combinations for flexible variables
+FlexCases = combvec(FlexVals{:}); %get combinations for flexible variables
 if isempty(FlexCases)
     FlexCases = 1; %at least one case, even if there are no flexible variables
 end
@@ -47,7 +47,6 @@ end
 PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 
-Screen('Preference', 'SkipSyncTests', 1);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 HideCursor(window);
@@ -85,7 +84,7 @@ TemporalFreqs = unique(BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),:));
 UseApertures = unique(BasicVarVals(ismember(BasicVarNames,'UseAperture'),:));
 ApertureSizes = unique(BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:));
 FlexNames = {'SpatialFreq','TemporalFreq','UseAperture','ApertureSize'};
-FlexCases = CombVec(SpatialFreqs,TemporalFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
+FlexCases = combvec(SpatialFreqs,TemporalFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
 
 
 for iCases = 1:size(FlexCases,2)
@@ -284,12 +283,8 @@ function dataOut = GetFigureData(dataIn)
                 elseif strcmp(get(dataIn.(hFields{iFields}),'Style'),'togglebutton') %if control is a binary input
                     dataOut.(hFields{iFields}) = dataIn.(hFields{iFields}).Value;
                 elseif strcmp(get(dataIn.(hFields{iFields}),'Style'),'popupmenu') %if control is a popup menu
-                    if iscell(dataIn.(hFields{iFields}))
-                        for iCells = 1:length(dataIn.(hFields{iFields}).String)
-                            dataOut.(hFields{iFields}){iCells} = dataIn.(hFields{iFields}).String{iCells};
-                        end
-                    else
-                        dataOut.(hFields{iFields}){1} = dataIn.(hFields{iFields}).String;
+                    for iCells = 1:length(dataIn.(hFields{iFields}).String)
+                        dataOut.(hFields{iFields}){iCells} = dataIn.(hFields{iFields}).String{iCells};
                     end
                 end
             end

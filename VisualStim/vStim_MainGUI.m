@@ -12,7 +12,7 @@ function varargout = vStim_MainGUI(varargin)
 %      VSTIM_MAINGUI('Property','Value',...) creates a new VSTIM_MAINGUI or raises the
 %      existing singleton*.  Starting from the left, property value pairs are
 %      applied to the GUI before vStim_MainGUI_OpeningFcn gets called.  An
-%      unrecognized property name or invalid value makes property application
+%      unrecognized property name or invalid value makes propertyOPpor application
 %      stop.  All inputs are passed to vStim_MainGUI_OpeningFcn via varargin.
 %
 %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
@@ -96,10 +96,23 @@ if isempty(info.AvailableSerialPorts)
     disp('No serial port found')
     handles.SerialDevices.String = 'none'; %serial device selector
     handles.DAQdeviceName.String = 'No port detected'; %show device name
-    handles.Arduino = [];
 else
     Ports = info.AvailableSerialPorts; %find all serial ports
     Ports(ismember(Ports, handles.SerialDevices.String{handles.SerialDevices.Value})) = []; %don't check currently selected serial port
+    
+    for x = 1 : length(Ports)
+        try
+            % search analog output module
+            handles.WavePlayer = BpodWavePlayer(Ports{x});
+            fprintf('Found analog output module on port: %s\n', Ports{x})
+            Ports{x} = []; %remove port from the list if this worked
+        catch
+            if x == length(Ports)
+                handles.WavePlayer = [];
+            end
+        end
+    end
+    
     [handles,Found] = CheckArduinoPort(Ports,handles); %check if correct serial device has the right handshake to identify as stim arduino
     if Found ~= 0
         disp(['Found responsive arduino on port ' Ports{Found}]);
@@ -423,7 +436,7 @@ if ~(size(handles.FlexibleVariableNames.String,1) == 0)
         cVal = textscan(handles.FlexibleVariableNames.String{iEntries},'%s'); %string from listbox
         FlexVals{iEntries} = str2num(handles.FlexibleVariableNames.String{iEntries}(length(cVal{1}{1})+1:end)); %value from listbox
     end
-    handles.CaseSum.String = num2str(size(CombVec(FlexVals{:}),2)); %get number of possible combinations
+    handles.CaseSum.String = num2str(size(combvec(FlexVals{:}),2)); %get number of possible combinations
 else
     hObject.String = 'No variable loaded';
     handles.CaseSum.String = '1';
