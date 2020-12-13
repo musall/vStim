@@ -96,6 +96,7 @@ if isempty(info.AvailableSerialPorts)
     disp('No serial port found')
     handles.SerialDevices.String = 'none'; %serial device selector
     handles.DAQdeviceName.String = 'No port detected'; %show device name
+    handles.Arduino = [];
 else
     Ports = info.AvailableSerialPorts; %find all serial ports
     Ports(ismember(Ports, handles.SerialDevices.String{handles.SerialDevices.Value})) = []; %don't check currently selected serial port
@@ -422,7 +423,7 @@ if ~(size(handles.FlexibleVariableNames.String,1) == 0)
         cVal = textscan(handles.FlexibleVariableNames.String{iEntries},'%s'); %string from listbox
         FlexVals{iEntries} = str2num(handles.FlexibleVariableNames.String{iEntries}(length(cVal{1}{1})+1:end)); %value from listbox
     end
-    handles.CaseSum.String = num2str(size(combvec(FlexVals{:}),2)); %get number of possible combinations
+    handles.CaseSum.String = num2str(size(CombVec(FlexVals{:}),2)); %get number of possible combinations
 else
     hObject.String = 'No variable loaded';
     handles.CaseSum.String = '1';

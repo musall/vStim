@@ -235,10 +235,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         if ~isempty(handles.SerialPort)
             IOPort('ConfigureSerialPort',handles.SerialPort,['DTR=1,RTS=' int2str(rem(Cnt,2))]); %first line is one during stimulation, second line goes on and off on each frame switch
         end
-        if rem(Cnt,2) == 1 && ~isempty(handles.Arduino)
-            fwrite(handles.Arduino, handles.stimByte)
-        end
-        
+
         [keyIsDown, ~, keyCode, ~] = KbCheck;
         if keyIsDown && any(strcmpi(KbName(find(keyCode)),'ESCAPE')) %abort presentation
             handles.ExperimentNr.String = num2str(str2double(handles.ExperimentNr.String)+1); %update experiment counter
