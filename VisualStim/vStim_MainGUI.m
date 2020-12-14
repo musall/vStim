@@ -100,17 +100,19 @@ if isempty(info.AvailableSerialPorts)
     handles.DAQdeviceName.String = 'No port detected'; %show device name
 else
     Ports = info.AvailableSerialPorts; %find all serial ports
-    Ports(ismember(Ports, handles.SerialDevices.String{handles.SerialDevices.Value})) = []; %don't check currently selected serial port
     
     for x = 1 : length(Ports)
         try
             % search analog output module
             handles.WavePlayer = BpodWavePlayer(Ports{x});
             fprintf('Found analog output module on port: %s\n', Ports{x})
-            Ports{x} = []; %remove port from the list if this worked
+            Ports(x) = []; %remove port from the list if this worked
         end
     end
-    
+    if isempty(handles.WavePlayer)
+        disp('Found no analog output module');
+    end
+
     [handles,Found] = CheckArduinoPort(Ports,handles); %check if correct serial device has the right handshake to identify as stim arduino
     if Found ~= 0
         disp(['Found responsive arduino on port ' Ports{Found}]);
@@ -121,23 +123,15 @@ else
         handles.Arduino = [];
     end
     
-    % use ioport to open non-arduino serial port
-    handles.SerialDevices.String = info.AvailableSerialPorts; %show available ports
-    
-    try
-        handles.SerialPort = IOPort('OpenSerialPort', handles.SerialDevices.String{handles.SerialDevices.Value},'BaudRate=115200,DTR=0,RTS=0');
-        IOPort('Verbosity', 1);
-    catch
-        handles.SerialPort = [];
-    end
-    if isempty(handles.Arduino) && ~isempty(handles.SerialPort)
-        handles.DAQdeviceName.String = ['Trigger: ' handles.SerialDevices.String{handles.SerialDevices.Value} ' - Arduino: none']; %show port name
-    elseif ~isempty(handles.Arduino) && isempty(handles.SerialPort)
-        handles.DAQdeviceName.String = ['Trigger: none - Arduino: ' handles.Arduino.Port]; %no responsive ports
-    elseif isempty(handles.Arduino) && isempty(handles.SerialPort)
-        handles.DAQdeviceName.String = 'Trigger: none - Arduino: none'; %no responsive ports
-    else
-        handles.DAQdeviceName.String = ['Trigger: ' handles.SerialDevices.String{handles.SerialDevices.Value} ' - Arduino: ' handles.Arduino.Port]; %show port name
+    handles.SerialDevices.String = Ports; %show available ports
+    if isempty(handles.Arduino) && isempty(handles.WavePlayer)
+        handles.DAQdeviceName.String = 'Arduino: none - WavePlayer: none'; %show port name
+    elseif ~isempty(handles.Arduino) && isempty(handles.WavePlayer)
+        handles.DAQdeviceName.String = ['Arduino: ' handles.Arduino.Port ' - WavePlayer: none']; %show port name
+    elseif isempty(handles.Arduino) && ~isempty(handles.WavePlayer)
+        handles.DAQdeviceName.String = ['Arduino: none - WavePlayer: ' handles.WavePlayer.Port.PortName]; %show port name
+    elseif ~isempty(handles.Arduino) && ~isempty(handles.WavePlayer)
+        handles.DAQdeviceName.String = ['Arduino: ' handles.Arduino.Port ' - WavePlayer: ' handles.WavePlayer.Port.PortName]; %show port name
     end
 end
 
@@ -537,34 +531,30 @@ function SerialDevices_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-IOPort('CloseAll');
-info.AvailableSerialPorts = FindSerialPort();
 if ~isempty(handles.Arduino)
-    info.AvailableSerialPorts(ismember(info.AvailableSerialPorts,handles.Arduino.Port)) = [];
+    close(handles.Arduino);
 end
 
-if isempty(info.AvailableSerialPorts)
-    disp('No serial port found')
-    handles.DAQdeviceName.String = 'Trigger: none - Arduino: none';
-    handles.SerialDevices.String = 'none'; %serial device selector
+Ports = FindSerialPort;
+Ports(ismember(Ports,handles.WavePlayer.Port.PortName)) = []; %ignore waveplayer port
+
+[handles,Found] = CheckArduinoPort(Ports,handles); %check if correct serial device has the right handshake to identify as stim arduino
+if Found ~= 0
+    disp(['Found responsive arduino on port ' Ports{Found}]);
+    flushinput(handles.Arduino);
 else
-    IOPort('CloseAll');
-    handles.SerialDevices.String = info.AvailableSerialPorts; %show available ports
-    try
-        handles.SerialPort = IOPort('OpenSerialPort', handles.SerialDevices.String{handles.SerialDevices.Value},'BaudRate=115200,DTR=0,RTS=0');
-        IOPort('Verbosity', 1);
-    catch
-        handles.SerialPort = [];
-    end
-    if isempty(handles.Arduino) && ~isempty(handles.SerialPort)
-        handles.DAQdeviceName.String = ['Trigger: ' handles.SerialDevices.String{handles.SerialDevices.Value} ' - Arduino: none']; %show port name
-    elseif ~isempty(handles.Arduino) && isempty(handles.SerialPort)
-        handles.DAQdeviceName.String = ['Trigger: none - Arduino: ' handles.Arduino.Port]; %no responsive ports
-    elseif isempty(handles.Arduino) && isempty(handles.SerialPort)
-        handles.DAQdeviceName.String = 'Trigger: none - Arduino: none'; %no responsive ports
-    else
-        handles.DAQdeviceName.String = ['Trigger: ' handles.SerialDevices.String{handles.SerialDevices.Value} ' - Arduino: ' handles.Arduino.Port]; %show port name
-    end
+    disp('No responsive arduino found.');
+    handles.Arduino = [];
+end
+
+if isempty(handles.Arduino) && isempty(handles.WavePlayer)
+    handles.DAQdeviceName.String = 'Arduino: none - WavePlayer: none'; %show port name
+elseif ~isempty(handles.Arduino) && isempty(handles.WavePlayer)
+    handles.DAQdeviceName.String = ['Arduino: ' handles.Arduino.Port ' - WavePlayer: none']; %show port name
+elseif isempty(handles.Arduino) && ~isempty(handles.WavePlayer)
+    handles.DAQdeviceName.String = ['Arduino: none - WavePlayer: ' handles.WavePlayer.Port.PortName]; %show port name
+elseif ~isempty(handles.Arduino) && ~isempty(handles.WavePlayer)
+    handles.DAQdeviceName.String = ['Arduino: ' handles.Arduino.Port ' - WavePlayer: ' handles.WavePlayer.Port.PortName]; %show port name
 end
 
 % Hints: contents = cellstr(get(hObject,'String')) returns SerialDevices contents as cell array

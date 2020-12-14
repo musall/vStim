@@ -1,17 +1,25 @@
-sxPosition          0
-syPosition          0
-sShowVisTrigger     1
-sVisTriggerSize     50
-sStimAngle          0
-sUseAperture        0
-sApertureSize       50
-sSpatialFreq        0.05
-sTemporalFreq       5
-sBackground         0.5
-sOptoDur            1
-sOptoShift          -0.5
-sPulseCount         2
-sPulseDur           0.1
-sPulseGap           0.4
-fPulseType          [1 2 3 4 5 6 7]
-fOptoType           [1 2 3 4]
+sxPosition            0
+syPosition            0
+sShowVisTrigger       1
+sVisTriggerSize       50
+sStimAngle            0
+sUseAperture          0
+sApertureSize         50
+sSpatialFreq          0.05
+sTemporalFreq         5
+sBackground           0.5
+sOptoDur              2
+sOptoShift            -0.5
+sPulseCount           2
+sPulseDur             0.1
+sPulseGap             0.4
+sOptoCasesBlueTwo     1
+sOptoCasesRedOne      1
+sOptoCasesRedTwo      1
+sOptoRamp             1
+sOptoFreq             40
+sRedPower             0.5
+sBluePower            0.5
+sAnalogRate           10000
+fStimType             [1  2  3  4  5  6  7]
+fOptoCasesBlueOne     [1  4]

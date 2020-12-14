@@ -43,6 +43,30 @@ if handles.RandomTrials.Value %randomize order of trials in each block of cases
     BasicVarVals = BasicVarVals(:,ind);
 end
 
+%% load stimuli to analog output module
+analogRate = unique(BasicVarVals(ismember(BasicVarNames,'AnalogRate'),:)); analogRate = analogRate(1); %sampling rate of analog signals
+
+% sensory stimulus
+pulseCount = unique(BasicVarVals(ismember(BasicVarNames,'PulseCount'),:)); pulseCount = pulseCount(1); %number of sensory event
+pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur = pulseDur(1); %duration of single sensory event
+pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
+
+
+
+% optogenetic stimulus
+optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
+optoRamp = unique(BasicVarVals(ismember(BasicVarNames,'OptoRamp'),:)); optoRamp = optoRamp(1); %duration of ramp after square wave
+optoFreq = unique(BasicVarVals(ismember(BasicVarNames,'OptoFreq'),:)); optoFreq = optoFreq(1); %frequency of square wave stimulus
+redPower = unique(BasicVarVals(ismember(BasicVarNames,'RedPower'),:)); redPower = redPower(1); %power of red lasers
+bluePower = unique(BasicVarVals(ismember(BasicVarNames,'BluePower'),:)); bluePower = bluePower(1); %power of blue lasers
+
+optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, redPower, bluePower); %get waveforms for optogenetics
+
+
+
+handles.WavePlayer.loadWaveform(1,ones(1,5000));
+handles.WavePlayer.loadWaveform(2,rand(1,5000));
+
 %% initialize Psychtoolbox and open screen
 PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
@@ -58,7 +82,7 @@ handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 handles.ScreenRes.String = [num2str(screenXpixels) ' x ' num2str(screenYpixels)];
 Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); % Enable alpha blending
 ifi=Screen('GetFlipInterval', window); %refresh rate
-StimData.Paradigm = 'vStim?MultimodalStim'; %name of the paradigm
+StimData.Paradigm = 'vStim_MultimodalStim'; %name of the paradigm
 StimData.VarNames = BasicVarNames; %basic variable names
 StimData.VarVals(:,1:str2double(handles.NrTrials.String)) = BasicVarVals(:,1:str2double(handles.NrTrials.String)); %basic variable values
 StimData.ScreenSize = textscan(handles.ScreenSize.String,'%f%c%f'); %get screen size in cm
@@ -89,7 +113,6 @@ ApertureSizes = unique(BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:));
 FlexNames = {'SpatialFreq','TemporalFreq','UseAperture','ApertureSize'};
 FlexCases = CombVec(SpatialFreqs,TemporalFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
 
-
 for iCases = 1:size(FlexCases,2)
     p=ceil(FlexCases(1,iCases));
     fr=1/FlexCases(1,iCases)*2*pi;
@@ -115,12 +138,6 @@ for iCases = 1:length(ApertureSizes)
     mask(:, :, 2) = ~(C<=C(texsize+1,end))*255;
     masktex(iCases)=Screen('MakeTexture', window, mask);
 end
-
-%% load stimuli to analog output module
-optoDur = unique(BasicVarVals(ismember(BasicVarNames,'optoDur'),:));
-
-handles.WavePlayer.loadWaveform(1,ones(1,5000));
-handles.WavePlayer.loadWaveform(2,rand(1,5000));
 
 %% Run paradigm
 if isfield(handles,'DataPath')
