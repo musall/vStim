@@ -45,13 +45,22 @@ end
 
 %% load stimuli to analog output module
 analogRate = unique(BasicVarVals(ismember(BasicVarNames,'AnalogRate'),:)); analogRate = analogRate(1); %sampling rate of analog signals
-
-% sensory stimulus
 pulseCount = unique(BasicVarVals(ismember(BasicVarNames,'PulseCount'),:)); pulseCount = pulseCount(1); %number of sensory event
 pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur = pulseDur(1); %duration of single sensory event
 pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
 
+% auditory noise bursts
+noise = [rand(1,pulseDur*analogRate)-0.5, zeros(1,pulseGap*analogRate)];
+noise = repmat(noise,1,pulseCount);
 
+% tactile air puffs
+puff = [ones(1,pulseDur*analogRate), zeros(1,pulseGap*analogRate)];
+puff = repmat(puff,1,pulseCount);
+
+% load stimuli to output module
+handles.WavePlayer.loadWaveform(1,noise); %signal 1 is auditory
+handles.WavePlayer.loadWaveform(2,puff); %signal 2 is tactile
+handles.WavePlayer.loadWaveform(3,[noise;puff]); %signal 3 is auditory + tactile
 
 % optogenetic stimulus
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
@@ -62,10 +71,10 @@ bluePower = unique(BasicVarVals(ismember(BasicVarNames,'BluePower'),:)); bluePow
 
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, redPower, bluePower); %get waveforms for optogenetics
 
+% load stimuli to output module
+handles.WavePlayer.loadWaveform(4,optoStim(1,:)); %signal 4 is red
+handles.WavePlayer.loadWaveform(5,optoStim(2,:)); %signal 5 is blue
 
-
-handles.WavePlayer.loadWaveform(1,ones(1,5000));
-handles.WavePlayer.loadWaveform(2,rand(1,5000));
 
 %% initialize Psychtoolbox and open screen
 PsychDefaultSetup(1);

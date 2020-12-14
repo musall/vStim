@@ -95,7 +95,7 @@ handles.trialByte = 102;
 handles.stimByte = 101;
 
 if isempty(info.AvailableSerialPorts)
-    disp('No serial port found')
+    disp('No available serial ports found')
     handles.SerialDevices.String = 'none'; %serial device selector
     handles.DAQdeviceName.String = 'No port detected'; %show device name
 else
