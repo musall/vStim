@@ -48,14 +48,18 @@ analogRate = unique(BasicVarVals(ismember(BasicVarNames,'AnalogRate'),:)); analo
 pulseCount = unique(BasicVarVals(ismember(BasicVarNames,'PulseCount'),:)); pulseCount = pulseCount(1); %number of sensory event
 pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur = pulseDur(1); %duration of single sensory event
 pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
+stimDur = (pulseDur + pulseGap) * pulseCount;
 
 % auditory noise bursts
-noise = [rand(1,pulseDur*analogRate)-0.5, zeros(1,pulseGap*analogRate)];
-noise = repmat(noise,1,pulseCount);
+% noise = [rand(1,pulseDur*analogRate)-0.5, zeros(1,pulseGap*analogRate)];
+% noise = repmat(noise,1,pulseCount);
+noise = rand(1,pulseDur*analogRate)-0.5; noise(end) = 0; %single burst
+
 
 % tactile air puffs
-puff = [ones(1,pulseDur*analogRate), zeros(1,pulseGap*analogRate)];
-puff = repmat(puff,1,pulseCount);
+% puff = [ones(1,pulseDur*analogRate), zeros(1,pulseGap*analogRate)];
+% puff = repmat(puff,1,pulseCount);
+puff = ones(1,pulseDur*analogRate); puff(end) = 0; single puff
 
 % load stimuli to output module
 handles.WavePlayer.loadWaveform(1,noise); %signal 1 is auditory
@@ -168,6 +172,7 @@ for iTrials = 1:str2double(handles.NrTrials.String)
         handles.Status.String = ['Trial ' num2str(iTrials) ' done - Waiting...']; drawnow();
         try %blank screen after stimulus presentation
             Screen('FillRect', window, Background);
+            Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
         catch
             ResetHandles
             return;
@@ -204,7 +209,6 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     xPosition = temp(1); yPosition = temp(2);
     
     TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),cTrial);
-    StimDuration = BasicVarVals(ismember(BasicVarNames,'StimDuration'),cTrial);
     TemporalFreq = BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),cTrial);
     SpatialFreq = BasicVarVals(ismember(BasicVarNames,'SpatialFreq'),cTrial);
     pixPerFrame = SpatialFreq / round(1/ifi) * TemporalFreq; %how many pixels per frame should be shifted to get the bar speed
@@ -218,7 +222,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     [temp(1),temp(2)] = RectCenter([0 0 screenXpixels screenYpixels]);
     destRect = CenterRectOnPointd(srcRect,xPosition+temp(1),-yPosition+temp(2)); %rectangle on screen
        
-    timeStamps = zeros(1,StimDuration*round(1/ifi));
+    timeStamps = zeros(1,stimDur*round(1/ifi));
     Cnt = 0; %counter for timeStamps
     if IsWin
         Priority(2); % Set to realtime priority to ensure high drawing speed
@@ -227,37 +231,50 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     end
     sTime = Screen('Flip', window); % Sync start time to the vertical retrace
     cTime = sTime; %current time equals start time
-    absStimTime = sTime + StimDuration;     
-    
+    pulseStart = cTime; %start time of first pulse
+    absStimTime = sTime + stimDur;     
+    pulseCnt = 1;
+    trigerAnalog = true;
+
     while(cTime < absStimTime)
         
         xoffset = mod(Cnt*pixPerFrame,SpatialFreq);
         srcRect=[xoffset 0 xoffset + visibleSize visibleSize];
         Cnt = Cnt+1;
         
-        % Draw grating texture, rotated by "angle":
-        Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
-        %Draw aperture
-        Screen('DrawTexture', window, masktex(mCase), [0 0 visibleSize visibleSize], destRect);
+        if ((cTime - pulseStart) >= pulseDur + pulseGap) && pulseCnt < pulseCount
+            pulseStart = cTime; %start nextpulse
+            pulseCnt = pulseCnt + 1;
+            trigerAnalog = true;
+        end
         
+        if (cTime - pulseStart) < pulseDur
+            % Draw grating texture, rotated by "angle":
+            Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
+            %Draw aperture
+            Screen('DrawTexture', window, masktex(mCase), [0 0 visibleSize visibleSize], destRect);
+        else
+            Screen('FillRect', window,Background); %show background during gap
+            Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
+        end
+            
         %draw frame indicator
-        if BasicVarVals(ismember(BasicVarNames,'ShowVisTrigger'),cTrial) %add visual indicator if ShowVisTrigger is true
-            if rem(Cnt,2) == 1 %show white square on even frame count
-%                 Screen('FillRect', window,255,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
-                Screen('FillRect', window,255,[0 0 TrigSize TrigSize])
-            else %show black square on uneven frame count
-%                 Screen('FillRect', window,0,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
-                Screen('FillRect', window,0,[0 0 TrigSize TrigSize])
-            end
+        if rem(Cnt,2) == 1 %show white square on even frame count
+            % Screen('FillRect', window,255,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
+            Screen('FillRect', window,255,[0 0 TrigSize TrigSize])
+        else %show black square on uneven frame count
+            % Screen('FillRect', window,0,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
+            Screen('FillRect', window,0,[0 0 TrigSize TrigSize])
         end
         
         %show frame
         cTime = Screen('Flip', window, cTime + 0.5 * ifi);
         timeStamps(Cnt) = cTime;
         
-        if Cnt == 1
+        % trigger analog stimuli if needed
+        if trigerAnalog
             handles.WavePlayer.play(1,1);
-            handles.WavePlayer.play(2,2);
+            trigerAnalog = false;
         end
 
         [keyIsDown, ~, keyCode, ~] = KbCheck;

@@ -1,6 +1,5 @@
 sxPosition            0
 syPosition            0
-sShowVisTrigger       1
 sVisTriggerSize       50
 sStimAngle            0
 sUseAperture          0
