@@ -45,8 +45,9 @@ end
 
 %% initialize Psychtoolbox and open screen
 PsychDefaultSetup(1);
-screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
+Screen('Preference', 'SkipSyncTests', 0);
 
+screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 HideCursor(window);

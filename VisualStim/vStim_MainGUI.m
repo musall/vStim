@@ -27,11 +27,11 @@ function varargout = vStim_MainGUI(varargin)
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @vStim_MainGUI_OpeningFcn, ...
-                   'gui_OutputFcn',  @vStim_MainGUI_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @vStim_MainGUI_OpeningFcn, ...
+    'gui_OutputFcn',  @vStim_MainGUI_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -70,7 +70,7 @@ Cnt = 1;
 for iParams = 1:length(Paradigms)
     [~,temp{iParams}] = fileparts(Paradigms(iParams).name);
     if ~isempty(dir([cPath filesep 'Paradigms' filesep temp{iParams} '.m'])) %check for .m file
-        pNames{Cnt} = temp{iParams}; 
+        pNames{Cnt} = temp{iParams};
         Cnt = Cnt +1;
     end
 end
@@ -87,6 +87,8 @@ cFlexibleVariable_Callback(handles.cFlexibleVariable, [], handles) %call cFlexib
 %% initialize serial port
 IOPort('CloseAll');
 handles.SerialPort = [];
+handles.Arduino = [];
+handles.WavePlayer = [];
 info.AvailableSerialPorts = FindSerialPort();
 handles.SerialDevices.Value = 1;
 handles.trialByte = 102;
@@ -106,10 +108,6 @@ else
             handles.WavePlayer = BpodWavePlayer(Ports{x});
             fprintf('Found analog output module on port: %s\n', Ports{x})
             Ports{x} = []; %remove port from the list if this worked
-        catch
-            if x == length(Ports)
-                handles.WavePlayer = [];
-            end
         end
     end
     
@@ -123,7 +121,7 @@ else
         handles.Arduino = [];
     end
     
-    % use ioport to open non-arduino serial port 
+    % use ioport to open non-arduino serial port
     handles.SerialDevices.String = info.AvailableSerialPorts; %show available ports
     
     try
@@ -157,7 +155,7 @@ guidata(hObject, handles);
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = vStim_MainGUI_OutputFcn(hObject, eventdata, handles) 
+function varargout = vStim_MainGUI_OutputFcn(hObject, eventdata, handles)
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -192,7 +190,7 @@ while ~isempty(Cnt)
         pVals(Cnt,:) = blanks(100); %allocate string array
         pNames(Cnt,1:strfind(pOut,' ')-1) = pOut(1:strfind(pOut,' ')-1);
         pVals(Cnt,1:length(strtrim(pOut(strfind(pOut,' ')+3:end)))) = strtrim(pOut(strfind(pOut,' ')+3:end));
-    else  
+    else
         Cnt = [];
     end
 end
@@ -331,7 +329,7 @@ cFlexibleVariable_Callback(handles.cFlexibleVariable, [], handles)
 StaticVariableNames_Callback(handles.StaticVariableNames, [], handles)
 cStaticVariable_Callback(handles.cStaticVariable, [], handles)
 
-    
+
 
 % --- Executes on button press in MoveToStatic.
 function MoveToStatic_Callback(hObject, eventdata, handles)
@@ -362,7 +360,7 @@ cFlexibleVariable_Callback(handles.cFlexibleVariable, [], handles)
 
 StaticVariableNames_Callback(handles.StaticVariableNames, [], handles)
 cStaticVariable_Callback(handles.cStaticVariable, [], handles)
-    
+
 function cStaticVariable_Callback(hObject, eventdata, handles)
 % hObject    handle to Tag_CurrentStaticVariable (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -436,7 +434,7 @@ if ~(size(handles.FlexibleVariableNames.String,1) == 0)
         cVal = textscan(handles.FlexibleVariableNames.String{iEntries},'%s'); %string from listbox
         FlexVals{iEntries} = str2num(handles.FlexibleVariableNames.String{iEntries}(length(cVal{1}{1})+1:end)); %value from listbox
     end
-    handles.CaseSum.String = num2str(size(combvec(FlexVals{:}),2)); %get number of possible combinations
+    handles.CaseSum.String = num2str(size(CombVec(FlexVals{:}),2)); %get number of possible combinations
 else
     hObject.String = 'No variable loaded';
     handles.CaseSum.String = '1';
@@ -461,7 +459,7 @@ function ScreenSize_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-ScreenSize = textscan(hObject.String,'%f%s%f'); %ScreenSize in cm 
+ScreenSize = textscan(hObject.String,'%f%s%f'); %ScreenSize in cm
 ScreenDist = str2double(handles.EyeDistance.String); %ScreenDistance in cm
 ScreenSize = 2*atan([ScreenSize{1} ScreenSize{3}]/(2*ScreenDist))./pi*180; %Screen size in visual degrees
 ScreenSize = round(ScreenSize,2);
@@ -513,12 +511,12 @@ function EyeDistance_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of EyeDistance as text
 %        str2double(get(hObject,'String')) returns contents of EyeDistance as a double
 
-ScreenSize = textscan(handles.ScreenSize.String,'%f%s%f'); %ScreenSize in cm 
+ScreenSize = textscan(handles.ScreenSize.String,'%f%s%f'); %ScreenSize in cm
 ScreenDist = str2double(handles.EyeDistance.String); %ScreenDistance in cm
 ScreenSize = 2*atan([ScreenSize{1} ScreenSize{3}]/(2*ScreenDist))./pi*180; %Screen size in visual degrees
 ScreenSize = round(ScreenSize,2);
 handles.ScreenSizeAngle.String = [num2str(ScreenSize(1)) ' x ' num2str(ScreenSize(2))];
-ScreenAngle_Callback(handles.ScreenAngle, [], handles); 
+ScreenAngle_Callback(handles.ScreenAngle, [], handles);
 
 % --- Executes during object creation, after setting all properties.
 function EyeDistance_CreateFcn(hObject, eventdata, handles)
@@ -547,7 +545,7 @@ end
 
 if isempty(info.AvailableSerialPorts)
     disp('No serial port found')
-    handles.DAQdeviceName.String = 'Trigger: none - Arduino: none'; 
+    handles.DAQdeviceName.String = 'Trigger: none - Arduino: none';
     handles.SerialDevices.String = 'none'; %serial device selector
 else
     IOPort('CloseAll');
@@ -864,7 +862,7 @@ cName = avoidOverwrite([cParam{1} '.txt'],cPath);
 
 %save file
 fID = fopen([cPath cName],'wt');
-Vars = [sVars;fVars]; 
+Vars = [sVars;fVars];
 for iRows = 1:size(Vars,1)
     fprintf(fID,[Vars{iRows} char(10)],'%s');
 end
@@ -892,9 +890,9 @@ cPath = [fileparts(which(handles.figure1.Name)) filesep 'Settings' filesep 'Defa
 
 %open param text and replace settings with current selection
 fID = fopen([cPath filesep cParam '.txt'],'wt');
-Vars = [sVars;fVars]; 
+Vars = [sVars;fVars];
 for iRows = 1:size(Vars,1)
-fprintf(fID,[Vars{iRows} char(10)],'%s');
+    fprintf(fID,[Vars{iRows} char(10)],'%s');
 end
 fclose(fID);
 
@@ -990,7 +988,7 @@ if hObject.Value
 else
     hObject.String = 'Triggermode: Master';
 end
-    
+
 function ScreenSizeAngle_Callback(hObject, eventdata, handles)
 % hObject    handle to ScreenSizeAngle (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -1044,7 +1042,7 @@ if hObject.Value
         warning('No batch files found. Create a batch sequence first.')
         hObject.Value = false;
         return;
-    else        
+    else
         %% Wait for user confirmation before moving on
         uiwait(msgbox('Press enter or space to continue','Wait','modal'));
         pause(1);
@@ -1121,7 +1119,7 @@ else
     handles.PreviewParadigm.String = 'Preview paradigm';
 end
 
-    
+
 % --- Executes on button press in MakeBatchSeq.
 function MakeBatchSeq_Callback(hObject, eventdata, handles)
 % hObject    handle to MakeBatchSeq (see GCBO)
@@ -1159,12 +1157,12 @@ while checker
     dPrompt = {'Enter the ITI in seconds'};
     pName = 'ITI';
     temp = inputdlg(dPrompt,pName,1,{'5'});
-    cParam(Cnt,2) = str2num(temp{1});    
+    cParam(Cnt,2) = str2num(temp{1});
     
     dPrompt = {'Enter pause after paradigm in seconds'};
     pName = 'Pause after paradigm';
     temp = inputdlg(dPrompt,pName,1,{'5'});
-    cParam(Cnt,3) = str2num(temp{1});        
+    cParam(Cnt,3) = str2num(temp{1});
     
     % check if another experiment should be added
     cResponse = questdlg('Add another experiment to batch?','Proceed?','Yes','No','No');
@@ -1199,9 +1197,9 @@ if ispc
     [~,RawString]=system('mode');
     CandidatePorts=regexp(RawString,'COM\d+','match');
 elseif isunix
-%     RawSerialPortList = dir('/dev/ttyUSB*');
-%     RawSerialPortList = [ dir('/dev/ttyACM*'); RawSerialPortList];
-%     RawSerialPortList = [ dir('/dev/ttyS*'); RawSerialPortList];
+    %     RawSerialPortList = dir('/dev/ttyUSB*');
+    %     RawSerialPortList = [ dir('/dev/ttyACM*'); RawSerialPortList];
+    %     RawSerialPortList = [ dir('/dev/ttyS*'); RawSerialPortList];
     [~,RawSerialPortList] = system('ls /dev/ttyUSB*');
     [~,PortList] = system('ls /dev/ttyACM*');
     RawSerialPortList = [RawSerialPortList PortList];
@@ -1257,7 +1255,7 @@ function outFile = avoidOverwrite(inFile,inPath,numDigits,startCount)
 % Function to check if a given file already exists and create a new
 % filename that can be used to avoid overwriting. New file names are
 % created by appending a sequence like '_001' to the file name. The number
-% is hereby increased until an unused file name is found. 
+% is hereby increased until an unused file name is found.
 %
 % Usage: outFile = avoidOverwrite(inFile,inPath,numDigits)
 %
@@ -1268,7 +1266,7 @@ function outFile = avoidOverwrite(inFile,inPath,numDigits,startCount)
 %        numDigits: The number of digits used for enumration. Default is 2
 %        digits, so filenames are set up as e.g. 'inFile_01.mat' and so on.
 %        startCount: Defines the starting number for enumeration. Standard
-%        is 0 so the first file is created as 'inFile_00.mat'. 
+%        is 0 so the first file is created as 'inFile_00.mat'.
 %        outFile: The filename that can be used to save a file without
 %        overwriting existing data.
 
@@ -1423,7 +1421,7 @@ if screenAngle > -90 || screenAngle < 90
     distanceTop = str2double(handles.EyeDistTop.String); %distance from screen top to animal fixation spot
     
     handles.EyeLineDistTop.String = num2str(screenDistance - (cos((90-screenAngle)/360*pi*2) * distanceTop));
-    handles.EyeLineDistBottom.String = num2str(screenDistance + (cos((90-screenAngle)/360*pi*2) * (screenHeight-distanceTop)));   
+    handles.EyeLineDistBottom.String = num2str(screenDistance + (cos((90-screenAngle)/360*pi*2) * (screenHeight-distanceTop)));
 else
     hObject.string = '0';
     disp('Screen angle can only between -90 and 90 degrees');

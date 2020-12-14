@@ -50,6 +50,8 @@ screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliabl
 Screen('Preference', 'SkipSyncTests', 0);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
+TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
+Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
 HideCursor(window);
 handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 [screenXpixels, screenYpixels] = Screen('WindowSize', window); % Get the size of the current window
@@ -115,6 +117,8 @@ for iCases = 1:length(ApertureSizes)
 end
 
 %% load stimuli to analog output module
+optoDur = unique(BasicVarVals(ismember(BasicVarNames,'optoDur'),:));
+
 handles.WavePlayer.loadWaveform(1,ones(1,5000));
 handles.WavePlayer.loadWaveform(2,rand(1,5000));
 
@@ -135,9 +139,9 @@ for iTrials = 1:str2double(handles.NrTrials.String)
     
     if iTrials ~= str2double(handles.NrTrials.String)
         save([dPath handles.SubjectName.String '_' date '_' handles.ExperimentNr.String '_settings.mat'],'StimData');
-        handles.Status.String = ['Trial ' num2str(iTrials) ' done - Waiting...'];drawnow();
+        handles.Status.String = ['Trial ' num2str(iTrials) ' done - Waiting...']; drawnow();
         try %blank screen after stimulus presentation
-            Screen('FillRect', window,Background);
+            Screen('FillRect', window, Background);
         catch
             ResetHandles
             return;
@@ -240,6 +244,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     
      %blank screen after stimulus presentation
     Screen('FillRect', window,Background);
+    Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
     Screen('Flip', window); %
     Priority(0);
 end

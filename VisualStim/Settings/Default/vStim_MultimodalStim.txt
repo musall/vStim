@@ -1,13 +1,17 @@
-sSpatialFreq        0.05
+sxPosition          0
+syPosition          0
+sShowVisTrigger     1
+sVisTriggerSize     50
 sStimAngle          0
 sUseAperture        0
 sApertureSize       50
-sBackground         0.5
-sStimDuration       10
-sStimCount          3
-sShowVisTrigger     1
-sVisTriggerSize     50
-sStimType           4
-sxPosition          0
-syPosition          0
+sSpatialFreq        0.05
 sTemporalFreq       5
+sBackground         0.5
+sOptoDur            1
+sOptoShift          -0.5
+sPulseCount         2
+sPulseDur           0.1
+sPulseGap           0.4
+fPulseType          [1 2 3 4 5 6 7]
+fOptoType           [1 2 3 4]
