@@ -20,13 +20,28 @@ for iVars = 1:size(handles.FlexibleVariableNames.String,1)
     clear temp
 end
 
+%% isolate optogenetic cases and put in a separate category
+optoID = 'OptoCases'; %identifier
+idx1 = contains(StatNames, optoID); %find static optocases
+idx2 = contains(FlexNames, optoID); %find flexible optocases
+
+optoNames = [StatNames(idx1), FlexNames(idx2)];
+optoNames = cellfun(@(x) strrep(x,'OptoCases',''), optoNames, 'UniformOutput',false); %remove identifer from variable names
+optoVars = [num2cell(StatVals(idx1)), FlexVals(idx2)];
+
+% remove flagged cases from old arrays
+StatNames(idx1) = [];
+StatVals(idx1) = [];
+FlexNames(idx2) = [];
+FlexVals(idx2) = [];
+
+%% generate cases based on other variables
 BasicVarNames = [StatNames FlexNames];  %all names basic variables that are required for correct function
 FlexCases = CombVec(FlexVals{:}); %get combinations for flexible variables
 if isempty(FlexCases)
     FlexCases = 1; %at least one case, even if there are no flexible variables
 end
 BasicVarVals = zeros(length(BasicVarNames),size(FlexCases,2)); %values of each basic variable that is required. these can change based on the amount of cases that are produced.
-    
 for x = 1:length(FlexVals)
     BasicVarVals(ismember(BasicVarNames,FlexNames{x}),:) = FlexCases(x,:); % fill flexibe variable values from flexcases
 end
@@ -34,11 +49,34 @@ for x = 1:length(StatNames)
     BasicVarVals(ismember(BasicVarNames,StatNames{x}),:) = repmat(StatVals(x),1,size(FlexCases,2)); % fill static variable values from StatVals
 end
 
+% add opto variables as zeros
+BasicVarNames = [BasicVarNames optoNames]; 
+BasicVarVals = [BasicVarVals; zeros(length(optoNames), size(BasicVarVals,2))];
+
+%% add specific optogenetic cases
+stimIdx = ismember(BasicVarNames, 'StimType'); %index for stimtype
+nonOptoCases = 1:size(BasicVarVals,2);
+for x = 1 : length(optoNames)
+    
+    % find cases and check if corresponding stimtype exists
+    if any(ismember(unique(optoVars{x}), unique(BasicVarVals(stimIdx,nonOptoCases))))
+        
+        %find all cases with matching stimtypes and duplicate
+        cIdx = ismember(BasicVarVals(stimIdx,nonOptoCases), unique(optoVars{x}));
+        newCases = BasicVarVals(:, nonOptoCases(cIdx));
+        newCases(size(newCases,1) - length(optoNames) + x, :) = 1;
+        
+        BasicVarVals = [BasicVarVals, newCases]; %add these to possible cases
+    end
+end
+nrCases = size(BasicVarVals,2); %nr of possible 
+
+%% make enough cases to match requested trialcount
 BasicVarVals = repmat(BasicVarVals,1,ceil(str2double(handles.NrTrials.String)/size(BasicVarVals,2))); %produce enough cases to cover all trials
 if handles.RandomTrials.Value %randomize order of trials in each block of cases
     ind = [];
-    for x = 1:ceil(str2double(handles.NrTrials.String)/size(FlexCases,2))
-        ind = [ind randperm(size(FlexCases,2))+size(FlexCases,2)*(x-1)];
+    for x = 1:ceil(str2double(handles.NrTrials.String)/nrCases)
+        ind = [ind randperm(nrCases)+nrCases*(x-1)];
     end
     BasicVarVals = BasicVarVals(:,ind);
 end
@@ -48,23 +86,20 @@ analogRate = unique(BasicVarVals(ismember(BasicVarNames,'AnalogRate'),:)); analo
 pulseCount = unique(BasicVarVals(ismember(BasicVarNames,'PulseCount'),:)); pulseCount = pulseCount(1); %number of sensory event
 pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur = pulseDur(1); %duration of single sensory event
 pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
-stimDur = (pulseDur + pulseGap) * pulseCount;
 
 % auditory noise bursts
 % noise = [rand(1,pulseDur*analogRate)-0.5, zeros(1,pulseGap*analogRate)];
 % noise = repmat(noise,1,pulseCount);
-noise = rand(1,pulseDur*analogRate)-0.5; noise(end) = 0; %single burst
-
+noise = rand(1,pulseDur*analogRate)-0.5; noise([1 end]) = 0; %single burst
 
 % tactile air puffs
 % puff = [ones(1,pulseDur*analogRate), zeros(1,pulseGap*analogRate)];
 % puff = repmat(puff,1,pulseCount);
-puff = ones(1,pulseDur*analogRate); puff(end) = 0; single puff
+puff = ones(1,pulseDur*analogRate); puff(end) = 0;
 
 % load stimuli to output module
 handles.WavePlayer.loadWaveform(1,noise); %signal 1 is auditory
 handles.WavePlayer.loadWaveform(2,puff); %signal 2 is tactile
-handles.WavePlayer.loadWaveform(3,[noise;puff]); %signal 3 is auditory + tactile
 
 % optogenetic stimulus
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
@@ -76,9 +111,8 @@ bluePower = unique(BasicVarVals(ismember(BasicVarNames,'BluePower'),:)); bluePow
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, redPower, bluePower); %get waveforms for optogenetics
 
 % load stimuli to output module
-handles.WavePlayer.loadWaveform(4,optoStim(1,:)); %signal 4 is red
-handles.WavePlayer.loadWaveform(5,optoStim(2,:)); %signal 5 is blue
-
+handles.WavePlayer.loadWaveform(3,optoStim(1,:)); %signal 4 is red
+handles.WavePlayer.loadWaveform(4,optoStim(2,:)); %signal 5 is blue
 
 %% initialize Psychtoolbox and open screen
 PsychDefaultSetup(1);
@@ -95,6 +129,10 @@ handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 handles.ScreenRes.String = [num2str(screenXpixels) ' x ' num2str(screenYpixels)];
 Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); % Enable alpha blending
 ifi=Screen('GetFlipInterval', window); %refresh rate
+
+% adjust optoshift to be a divider of the video framerate
+BasicVarVals(ismember(BasicVarNames,'OptoShift'),:) = round(BasicVarVals(ismember(BasicVarNames,'OptoShift'),:) ./ ifi) * ifi; %
+
 StimData.Paradigm = 'vStim_MultimodalStim'; %name of the paradigm
 StimData.VarNames = BasicVarNames; %basic variable names
 StimData.VarVals(:,1:str2double(handles.NrTrials.String)) = BasicVarVals(:,1:str2double(handles.NrTrials.String)); %basic variable values
@@ -126,7 +164,7 @@ ApertureSizes = unique(BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:));
 FlexNames = {'SpatialFreq','TemporalFreq','UseAperture','ApertureSize'};
 FlexCases = CombVec(SpatialFreqs,TemporalFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
 
-for iCases = 1:size(FlexCases,2)
+for iCases = 1:nrCases
     p=ceil(FlexCases(1,iCases));
     fr=1/FlexCases(1,iCases)*2*pi;
     
@@ -143,6 +181,7 @@ end
 if any(UseApertures == 0)
     ApertureSizes = [ApertureSizes sqrt(screenXpixels^2+screenYpixels^2)]; %add mask for full field stimuli if needed
 end
+
 for iCases = 1:length(ApertureSizes)
     texsize = round(ApertureSizes(iCases)/2);
     mask=ones(2*texsize+1, 2*texsize+1, 2) * Background;
@@ -184,13 +223,39 @@ for iTrials = 1:str2double(handles.NrTrials.String)
 end
 
 handles.ExperimentNr.String = num2str(str2double(handles.ExperimentNr.String)+1); %update experiment counter
-handles.Status.String = 'vStim_DriftingGradients completed';
+handles.Status.String = 'vStim_MultimodalStim completed';
 ResetHandles
 
 %% nested function
 function timeStamps = RunTrial(cTrial) % Animate drifting gradients
+    
+    % get current stimtype and optocase and determine analog outputs
+    cStim = BasicVarVals(ismember(BasicVarNames,'StimType'),cTrial); %get stimtype
+    sensoryOut = [];
+    switch cStim
+        case 1; sensoryOut = []; %only vision, no analog output
+        case 2; sensoryOut = 1; %only audio, channel 1
+        case 3; sensoryOut = 2; %only tactile, channel 2
+        case 4; sensoryOut = 1; %vision-audio, channel 1
+        case 5; sensoryOut = 2; %vision-tactile, channel 2
+        case 6; sensoryOut = [1 2]; %audio-tactile, channel 1+2
+        case 7; sensoryOut = [1 2]; %vision-audio-tactile, channel 1+2
+    end
+        
+    % get current optocase and determine analog outputs
+    cOptoVals = BasicVarVals(ismember(BasicVarNames,optoNames),cTrial)>0; %get active optogenetic cases
+    optoOut = []; optoOutChan = []; %optogenetic output stimulus and channel
+    switch optoNames{cOptoVals}
+        case 'RedOne'; optoOut = 3; optoOutChan = 1; %red laser on location 1
+        case 'BlueOne'; optoOut = 4; optoOutChan = 2; %blue laser on location 1
+        case 'RedTwo'; optoOut = 3; optoOutChan = 3; %red laser on location 2
+        case 'BlueTwo'; optoOut = 4; optoOutChan = 4; %blue laser on location 2
+        case 'RedBoth'; optoOut = 3; optoOutChan = [1 3]; %red laser on location 1 and 2
+        case 'BlueBoth'; optoOut = 4; optoOutChan = [2 4]; %blue laser on location 1 and 2
+    end
+    
     %identify case for grating texture
-    temp = zeros(length(FlexNames),size(FlexCases,2));
+    temp = zeros(length(FlexNames),nrCases);
     for x = 1:length(FlexNames)
         temp(x,:) = FlexCases(x,:) == BasicVarVals(ismember(BasicVarNames,FlexNames{x}),cTrial);
     end
@@ -200,6 +265,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     else
         mCase = length(ApertureSizes);
     end
+    
     % translate visual angle position into screen coordinates
     xPosition = BasicVarVals(ismember(BasicVarNames,'xPosition'),cTrial); %xPosition in pixels
     yPosition = BasicVarVals(ismember(BasicVarNames,'yPosition'),cTrial); %yPosition in pixels
@@ -221,7 +287,18 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     srcRect = [0 0 visibleSize visibleSize]; %rectangle from source texture
     [temp(1),temp(2)] = RectCenter([0 0 screenXpixels screenYpixels]);
     destRect = CenterRectOnPointd(srcRect,xPosition+temp(1),-yPosition+temp(2)); %rectangle on screen
-       
+    
+    
+    %assess timing and duration of current trial (duration of optogenetic stimulus is not taken into account)
+    optoShift = BasicVarVals(ismember(BasicVarNames,'OptoShift'),cTrial); %shift of optogenetics relative to sensory stimulus
+    optoShift = optoShift * any(BasicVarVals(ismember(BasicVarNames,optoNames),cTrial) > 0); %only shift in optogenetic trials
+    pulseDur = BasicVarVals(ismember(BasicVarNames,'PulseDur'),cTrial); %duration of a sensory pulse
+    pulseGap = BasicVarVals(ismember(BasicVarNames,'PulseGap'),cTrial); %gap between pulses
+    stimDur = (pulseDur + pulseGap) * pulseCount;
+    if optoShift < 0
+        stimDur = stimDur - optoShift;
+    end
+    
     timeStamps = zeros(1,stimDur*round(1/ifi));
     Cnt = 0; %counter for timeStamps
     if IsWin
@@ -231,21 +308,29 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     end
     sTime = Screen('Flip', window); % Sync start time to the vertical retrace
     cTime = sTime; %current time equals start time
-    pulseStart = cTime; %start time of first pulse
-    absStimTime = sTime + stimDur;     
-    pulseCnt = 1;
-    trigerAnalog = true;
+    absStimTime = sTime + stimDur; %total trial duration
+    pulseStart = cTime - (pulseDur + pulseGap); %first pulse can start immediately
+    pulseCnt = 0;
+    trigerAnalog = ~isempty(sensoryOut);
+    
+    if optoShift < 0
+        sensoryStart = cTime - optoShift; %shift start time of first sensory pulse
+        optoStart = cTime; %optogenetics starts immediately
+    else
+        optoStart = cTime + optoShift; %shift optogenetics relative to stim onset
+    end
 
+    % start running stimulation
     while(cTime < absStimTime)
         
         xoffset = mod(Cnt*pixPerFrame,SpatialFreq);
         srcRect=[xoffset 0 xoffset + visibleSize visibleSize];
         Cnt = Cnt+1;
         
-        if ((cTime - pulseStart) >= pulseDur + pulseGap) && pulseCnt < pulseCount
-            pulseStart = cTime; %start nextpulse
+        if ((cTime - pulseStart) >= pulseDur + pulseGap) && pulseCnt < pulseCount && cTime >= sensoryStart
+            pulseStart = cTime; %start next pulse
             pulseCnt = pulseCnt + 1;
-            trigerAnalog = true;
+            trigerAnalog = ~isempty(sensoryOut);
         end
         
         if (cTime - pulseStart) < pulseDur
@@ -257,7 +342,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             Screen('FillRect', window,Background); %show background during gap
             Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
         end
-            
+        
         %draw frame indicator
         if rem(Cnt,2) == 1 %show white square on even frame count
             % Screen('FillRect', window,255,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
@@ -273,8 +358,13 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         
         % trigger analog stimuli if needed
         if trigerAnalog
-            handles.WavePlayer.play(1,1);
+            handles.WavePlayer.play(sensoryOut,sensoryOut); %output sensory stimuli
             trigerAnalog = false;
+        end
+        
+        if cTime >= optoStart
+            handles.WavePlayer.play(optoOut,optoOutChan);
+            optoStart = inf; %dont trigger again this trial
         end
 
         [keyIsDown, ~, keyCode, ~] = KbCheck;
@@ -285,7 +375,8 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         end
     end
     
-     %blank screen after stimulus presentation
+    %blank screen after stimulus presentation
+    handles.WavePlayer.play(); %stop analog output
     Screen('FillRect', window,Background);
     Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
     Screen('Flip', window); %

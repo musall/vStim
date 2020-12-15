@@ -13,8 +13,10 @@ sPulseCount           2
 sPulseDur             0.1
 sPulseGap             0.4
 sOptoCasesBlueTwo     1
+sOptoCasesBlueBoth    1
 sOptoCasesRedOne      1
 sOptoCasesRedTwo      1
+sOptoCasesRedBoth     1
 sOptoRamp             1
 sOptoFreq             40
 sRedPower             0.5
