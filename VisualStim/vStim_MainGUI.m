@@ -105,6 +105,7 @@ else
         try
             % search analog output module
             handles.WavePlayer = BpodWavePlayer(Ports{x});
+            handles.WavePlayer.OutputRange = '-5V:5V';
             fprintf('Found analog output module on port: %s\n', Ports{x})
             Ports(x) = []; %remove port from the list if this worked
         end

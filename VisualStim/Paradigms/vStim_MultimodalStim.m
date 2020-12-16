@@ -1,7 +1,23 @@
 function vStim_MultimodalStim(handles)
 % code to produce sensory stimuli for multisensory stimulation.
 % UseAperture creates a circular aperture. Otherwise makes a full field stimulus. 
-% This paradigm needs a detected analog outout module. Talk to Simon for details.
+% This paradigm needs a detected analog outout module. 
+% Stimtype defines the type of sensory stimulation.
+%
+% Stimtype 1 only vision, no analog output needed
+% Stimtype 2; only audio, channel 1
+% Stimtype 3; only tactile, channel 2
+% Stimtype 4; vision-audio, channel 1
+% Stimtype 5; vision-tactile, channel 2
+% Stimtype 6; audio-tactile, channel 1+2
+% Stimtype 7; vision-audio-tactile, channel 1+2
+%
+% Variables that begin with 'optoCases' identify cases where optogenetic
+% stimulation should be combiend with sensory stimulation. The values of
+% these variables identify the Stimtype for which an optogenetic
+% stimulation case should be added.
+%
+% Talk to Simon for more details.
 
 %% Isolate all relevant variables from MainGUI
 StatNames = {}; FlexNames = {};
@@ -82,24 +98,40 @@ if handles.RandomTrials.Value %randomize order of trials in each block of cases
 end
 
 %% load stimuli to analog output module
+W = handles.WavePlayer;
+W.OutputRange = '-5V:5V'; % make sure output range is correct
+W.TriggerMode = 'Master';
+W.TriggerProfileEnable = 'On'; % use trigger profiles to produce different waveforms across channels
+W.TriggerMode = 'Master'; %output can be interrupted by new stimulus triggers
+W.LoopDuration(1:8) = 0; %keep on for a up to 10 minutes
+
 analogRate = unique(BasicVarVals(ismember(BasicVarNames,'AnalogRate'),:)); analogRate = analogRate(1); %sampling rate of analog signals
 pulseCount = unique(BasicVarVals(ismember(BasicVarNames,'PulseCount'),:)); pulseCount = pulseCount(1); %number of sensory event
 pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur = pulseDur(1); %duration of single sensory event
 pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
 
 % auditory noise bursts
-% noise = [rand(1,pulseDur*analogRate)-0.5, zeros(1,pulseGap*analogRate)];
-% noise = repmat(noise,1,pulseCount);
 noise = rand(1,pulseDur*analogRate)-0.5; noise([1 end]) = 0; %single burst
+makePuff = unique(BasicVarVals(ismember(BasicVarNames,'MakePuff'),:)); makePuff = makePuff(1) == 1; %flag to use air puffs or not
 
-% tactile air puffs
-% puff = [ones(1,pulseDur*analogRate), zeros(1,pulseGap*analogRate)];
-% puff = repmat(puff,1,pulseCount);
-puff = ones(1,pulseDur*analogRate); puff(end) = 0;
+% tactile
+if makePuff % tactile air puffs
+    puff = ones(1,pulseDur*analogRate); puff(end) = 0;
+else
+    % tactile buzzes from actuator
+    resFreq = 205; %resonant frequency of tactile actuator
+    temp = -pi:2*pi/(analogRate*pulseDur):pi; temp(end) = [];
+    puff = (cos(temp)+1)/2;
+    puff = (puff(1,:) - min(puff)) / max((puff(1,:) - min(puff)));
+    cycles = ceil(2*pi*resFreq*pulseDur);
+    tt = 0:cycles/round(analogRate*pulseDur):cycles; tt(end-1) = [];
+    puff(length(tt)) = 0; %make sure puff is long enough
+    puff = puff.*sin(tt);
+end
 
 % load stimuli to output module
-handles.WavePlayer.loadWaveform(1,noise); %signal 1 is auditory
-handles.WavePlayer.loadWaveform(2,puff); %signal 2 is tactile
+W.loadWaveform(1,noise.*5); %signal 1 is auditory
+W.loadWaveform(2,puff.*5); %signal 2 is tactile
 
 % optogenetic stimulus
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
@@ -109,19 +141,61 @@ redPower = unique(BasicVarVals(ismember(BasicVarNames,'RedPower'),:)); redPower 
 bluePower = unique(BasicVarVals(ismember(BasicVarNames,'BluePower'),:)); bluePower = bluePower(1); %power of blue lasers
 
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, redPower, bluePower); %get waveforms for optogenetics
+optoStim = optoStim .*5; %scale to 5V output
 
 % load stimuli to output module
-handles.WavePlayer.loadWaveform(3,optoStim(1,:)); %signal 4 is red
-handles.WavePlayer.loadWaveform(4,optoStim(2,:)); %signal 5 is blue
+W.loadWaveform(3,optoStim(1,:)); %signal 3 is red
+W.loadWaveform(4,optoStim(2,:)); %signal 4 is blue
+W.loadWaveform(5,optoStim(1,1:ceil(pulseDur / pulseDur) * pulseDur * analogRate)); %signal 5 is red pulse
+
+% create trigger profiles that match different stimype
+redCases = {3 5 [3 5]};
+for stimTypes = 1 : 7
+    switch stimTypes
+        case 1 %only vision, no analog output needed
+        case 2; W.TriggerProfiles(stimTypes, 1) = 1; %only audio, channel 1
+        case 3; W.TriggerProfiles(stimTypes, 2) = 2; %only tactile, channel 2
+        case 4; W.TriggerProfiles(stimTypes, 1) = 1; %vision-audio, channel 1
+        case 5; W.TriggerProfiles(stimTypes, 2) = 2; %vision-tactile, channel 2
+        case 6; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %audio-tactile, channel 1+2
+        case 7; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %vision-audio-tactile, channel 1+2
+    end
+    
+    for redLEDs = 1:3
+        % make extra cases where red light is triggered with sensory
+        % stimuli. make the same triggerprofile but add red pulses. This
+        % will presumably range between profiles 11 and 37.
+        redChans = repmat(5, 1, length(redCases{redLEDs}));
+        switch stimTypes
+            case 1; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redChans; %only vision
+            case 2; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redChans]; %only audio, channel 1
+            case 3; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redChans]; %only tactile, channel 2
+            case 4; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redChans]; %vision-audio, channel 1
+            case 5; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redChans]; %vision-tactile, channel 2
+            case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redChans]; %audio-tactile, channel 1+2
+            case 7; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redChans]; %vision-audio-tactile, channel 1+2
+        end
+    end
+end
+
+% define trigger profiles for optogenetic cases
+W.TriggerProfiles(51, 3) = 3; %red laser on location 1 (RedOne)
+W.TriggerProfiles(52, 4) = 4; %blue laser on location 1 (BlueOne)
+W.TriggerProfiles(53, 5) = 3; %red laser on location 2 (RedTwo)
+W.TriggerProfiles(54, 6) = 4; %blue laser on location 2 (BlueTwo)
+W.TriggerProfiles(55, [3 5]) = 3; %red laser on location 1+2 (RedBoth)
+W.TriggerProfiles(56, [4 6]) = 4; %blue laser on location 1+2 (BlueBoth)
+
+handles.WavePlayer = W; %make sure this is the same
 
 %% initialize Psychtoolbox and open screen
 PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 
+TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
 Screen('Preference', 'SkipSyncTests', 0);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
-window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
-TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
+window = Screen('OpenWindow', screenNumber, Background, [0 0 TrigSize TrigSize]*5); %open ptb window and save handle in pSettings
 Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
 HideCursor(window);
 handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
@@ -138,6 +212,7 @@ StimData.VarNames = BasicVarNames; %basic variable names
 StimData.VarVals(:,1:str2double(handles.NrTrials.String)) = BasicVarVals(:,1:str2double(handles.NrTrials.String)); %basic variable values
 StimData.ScreenSize = textscan(handles.ScreenSize.String,'%f%c%f'); %get screen size in cm
 StimData.handles = GetFigureData(handles); %get information from the figure handles
+ifi = 1 / round(1/ifi); %get more precise number on inter-frame interval
 StimData.sRate = ifi;
 
 % modify aperture size from visual angle to pixel
@@ -164,7 +239,7 @@ ApertureSizes = unique(BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:));
 FlexNames = {'SpatialFreq','TemporalFreq','UseAperture','ApertureSize'};
 FlexCases = CombVec(SpatialFreqs,TemporalFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
 
-for iCases = 1:nrCases
+for iCases = 1:size(FlexCases,2)
     p=ceil(FlexCases(1,iCases));
     fr=1/FlexCases(1,iCases)*2*pi;
     
@@ -231,28 +306,32 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     
     % get current stimtype and optocase and determine analog outputs
     cStim = BasicVarVals(ismember(BasicVarNames,'StimType'),cTrial); %get stimtype
-    sensoryOut = [];
-    switch cStim
-        case 1; sensoryOut = []; %only vision, no analog output
-        case 2; sensoryOut = 1; %only audio, channel 1
-        case 3; sensoryOut = 2; %only tactile, channel 2
-        case 4; sensoryOut = 1; %vision-audio, channel 1
-        case 5; sensoryOut = 2; %vision-tactile, channel 2
-        case 6; sensoryOut = [1 2]; %audio-tactile, channel 1+2
-        case 7; sensoryOut = [1 2]; %vision-audio-tactile, channel 1+2
-    end
-        
+    visualOn = ismember(cStim, [1 4 5 7]); %flag to present visual stimulus
+    cStim1 = cStim;
+    
     % get current optocase and determine analog outputs
+    RedSensoryPulses = unique(BasicVarVals(ismember(BasicVarNames,'RedSensoryPulses'),cStim));
     cOptoVals = BasicVarVals(ismember(BasicVarNames,optoNames),cTrial)>0; %get active optogenetic cases
-    optoOut = []; optoOutChan = []; %optogenetic output stimulus and channel
-    switch optoNames{cOptoVals}
-        case 'RedOne'; optoOut = 3; optoOutChan = 1; %red laser on location 1
-        case 'BlueOne'; optoOut = 4; optoOutChan = 2; %blue laser on location 1
-        case 'RedTwo'; optoOut = 3; optoOutChan = 3; %red laser on location 2
-        case 'BlueTwo'; optoOut = 4; optoOutChan = 4; %blue laser on location 2
-        case 'RedBoth'; optoOut = 3; optoOutChan = [1 3]; %red laser on location 1 and 2
-        case 'BlueBoth'; optoOut = 4; optoOutChan = [2 4]; %blue laser on location 1 and 2
+    optoOut = []; %optogenetic output profile
+    if ~isempty(optoNames(cOptoVals))
+        switch optoNames{cOptoVals}
+            case 'RedOne'; optoOut = 51; %red laser on location 1
+            case 'BlueOne'; optoOut = 52; %blue laser on location 1
+            case 'RedTwo'; optoOut = 53; %red laser on location 2
+            case 'BlueTwo'; optoOut = 54; %blue laser on location 2
+            case 'RedBoth'; optoOut = 55; %red laser on location 1 and 2
+            case 'BlueBoth'; optoOut = 56; %blue laser on location 1 and 2
+        end
+        if RedSensoryPulses
+            switch optoNames{cOptoVals}
+                case 'RedOne'; optoOut = []; cStim = cStim + 10; %red laser on location 1 but with sensory stimuli
+                case 'RedTwo'; optoOut = []; cStim = cStim + 20; %red laser on location 2 but with sensory stimuli
+                case 'RedBoth'; optoOut = []; cStim = cStim + 30; %red laser on location 1 and 2 but with sensory stimuli
+            end
+        end
     end
+    fprintf('old stim %d, new stim: %d\n', cStim1, cStim); drawnow;
+    fprintf('optocase: %s, optoOut: %d\n', char(optoNames{cOptoVals}), char(optoOut)); drawnow;
     
     %identify case for grating texture
     temp = zeros(length(FlexNames),nrCases);
@@ -299,7 +378,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         stimDur = stimDur - optoShift;
     end
     
-    timeStamps = zeros(1,stimDur*round(1/ifi));
+    timeStamps = zeros(1,ceil(stimDur*round(1/ifi)));
     Cnt = 0; %counter for timeStamps
     if IsWin
         Priority(2); % Set to realtime priority to ensure high drawing speed
@@ -311,13 +390,14 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     absStimTime = sTime + stimDur; %total trial duration
     pulseStart = cTime - (pulseDur + pulseGap); %first pulse can start immediately
     pulseCnt = 0;
-    trigerAnalog = ~isempty(sensoryOut);
+    trigerAnalog = false;
     
     if optoShift < 0
         sensoryStart = cTime - optoShift; %shift start time of first sensory pulse
         optoStart = cTime; %optogenetics starts immediately
     else
         optoStart = cTime + optoShift; %shift optogenetics relative to stim onset
+        sensoryStart = cTime;
     end
 
     % start running stimulation
@@ -330,10 +410,10 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         if ((cTime - pulseStart) >= pulseDur + pulseGap) && pulseCnt < pulseCount && cTime >= sensoryStart
             pulseStart = cTime; %start next pulse
             pulseCnt = pulseCnt + 1;
-            trigerAnalog = ~isempty(sensoryOut);
+            trigerAnalog = cStim ~= 1;
         end
         
-        if (cTime - pulseStart) < pulseDur
+        if (cTime - pulseStart) < pulseDur && visualOn
             % Draw grating texture, rotated by "angle":
             Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
             %Draw aperture
@@ -358,13 +438,13 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         
         % trigger analog stimuli if needed
         if trigerAnalog
-            handles.WavePlayer.play(sensoryOut,sensoryOut); %output sensory stimuli
+            handles.WavePlayer.play(cStim); %output sensory stimuli
             trigerAnalog = false;
         end
         
-        if cTime >= optoStart
-            handles.WavePlayer.play(optoOut,optoOutChan);
-            optoStart = inf; %dont trigger again this trial
+        if cTime >= optoStart && ~isempty(optoOut)
+            handles.WavePlayer.play(optoOut);
+            optoOut = []; %dont trigger again this trial
         end
 
         [keyIsDown, ~, keyCode, ~] = KbCheck;
@@ -376,7 +456,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     end
     
     %blank screen after stimulus presentation
-    handles.WavePlayer.play(); %stop analog output
+    handles.WavePlayer.stop; %stop analog output
     Screen('FillRect', window,Background);
     Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
     Screen('Flip', window); %
