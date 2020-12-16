@@ -195,7 +195,7 @@ screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliabl
 TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
 Screen('Preference', 'SkipSyncTests', 0);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
-window = Screen('OpenWindow', screenNumber, Background, [0 0 TrigSize TrigSize]*5); %open ptb window and save handle in pSettings
+window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
 HideCursor(window);
 handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
@@ -307,7 +307,6 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     % get current stimtype and optocase and determine analog outputs
     cStim = BasicVarVals(ismember(BasicVarNames,'StimType'),cTrial); %get stimtype
     visualOn = ismember(cStim, [1 4 5 7]); %flag to present visual stimulus
-    cStim1 = cStim;
     
     % get current optocase and determine analog outputs
     RedSensoryPulses = unique(BasicVarVals(ismember(BasicVarNames,'RedSensoryPulses'),cStim));
@@ -330,8 +329,6 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             end
         end
     end
-    fprintf('old stim %d, new stim: %d\n', cStim1, cStim); drawnow;
-    fprintf('optocase: %s, optoOut: %d\n', char(optoNames{cOptoVals}), char(optoOut)); drawnow;
     
     %identify case for grating texture
     temp = zeros(length(FlexNames),nrCases);
