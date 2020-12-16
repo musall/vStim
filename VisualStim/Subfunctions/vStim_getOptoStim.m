@@ -7,11 +7,17 @@ if ~exist('onRamp','var') || isempty(onRamp)
     onRamp = 0.05; %ramp onset of square wave to avoid light artifacts
 end
 
+if optoRamp > optoDur - onRamp
+    fprintf('!!! Optoramp(%fs) is longer as maximum pulse duration(%fs). Shortened accordingly !!!\n',optoRamp,optoDur - onRamp);
+    optoRamp = optoDur - onRamp;
+end
+
 optoStim = zeros(2, round(sRate*optoDur)); %two channels. First is blue, second is red.
 
 %stim sequence for red laser channels (first channel)
-tt = 0 : 1/sRate : optoDur - 1/sRate;
-optoStim(1, :) = (sin(2*pi*optoFreq*tt)+1) ./2 .* redPower;
+redDur = floor(optoFreq * optoDur) * (1/optoFreq); %make sure this red signal only contains complete cycles
+tt = 0 : 1/sRate : redDur - 1/sRate;
+optoStim(1, 1:length(tt)) = (cos(pi*optoFreq*tt-pi)+1) ./2 .* redPower;
 
 %ramping stimulus for blue laser channels (second channel)
 signal = ones(1, sRate * optoDur);

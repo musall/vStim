@@ -404,13 +404,14 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         srcRect=[xoffset 0 xoffset + visibleSize visibleSize];
         Cnt = Cnt+1;
         
-        if ((cTime - pulseStart) >= pulseDur + pulseGap) && pulseCnt < pulseCount && cTime >= sensoryStart
+        pulseOn = ((cTime - pulseStart) >= pulseDur + pulseGap) && pulseCnt < pulseCount && cTime >= sensoryStart;
+        if pulseOn
             pulseStart = cTime; %start next pulse
             pulseCnt = pulseCnt + 1;
             trigerAnalog = cStim ~= 1;
         end
         
-        if (cTime - pulseStart) < pulseDur && visualOn
+        if pulseOn && visualOn
             % Draw grating texture, rotated by "angle":
             Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
             %Draw aperture
