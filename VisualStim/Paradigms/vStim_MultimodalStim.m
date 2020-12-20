@@ -146,10 +146,13 @@ optoStim = optoStim .*5; %scale to 5V output
 % load stimuli to output module
 W.loadWaveform(3,optoStim(1,:)); %signal 3 is red
 W.loadWaveform(4,optoStim(2,:)); %signal 4 is blue
-W.loadWaveform(5,optoStim(1,1:ceil(pulseDur / pulseDur) * pulseDur * analogRate)); %signal 5 is red pulse
+redPulseSignal = 5; %keep which signal is used for red pulses
+W.loadWaveform(redPulseSignal,optoStim(1,1:ceil(pulseDur / pulseDur) * pulseDur * analogRate)); %signal 5 is red pulse
+enableTTL = 6; %keep which signal is used to enable lasers
+W.loadWaveform(6,ones(1,size(optoStim,2)) .* 5); %signal 6 is enable trigger
 
 % create trigger profiles that match different stimype
-redCases = {3 5 [3 5]};
+redCases = {[3 7] [5 8] [3 5 7 8]};
 for stimTypes = 1 : 7
     switch stimTypes
         case 1 %only vision, no analog output needed
@@ -165,26 +168,26 @@ for stimTypes = 1 : 7
         % make extra cases where red light is triggered with sensory
         % stimuli. make the same triggerprofile but add red pulses. This
         % will presumably range between profiles 11 and 37.
-        redChans = repmat(5, 1, length(redCases{redLEDs}));
+        redSignal = [repmat(redPulseSignal, 1, length(redCases{redLEDs})/2) repmat(enableTTL, 1, length(redCases{redLEDs})/2)];
         switch stimTypes
-            case 1; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redChans; %only vision
-            case 2; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redChans]; %only audio, channel 1
-            case 3; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redChans]; %only tactile, channel 2
-            case 4; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redChans]; %vision-audio, channel 1
-            case 5; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redChans]; %vision-tactile, channel 2
-            case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redChans]; %audio-tactile, channel 1+2
-            case 7; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redChans]; %vision-audio-tactile, channel 1+2
+            case 1; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %only vision
+            case 2; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redSignal]; %only audio, channel 1
+            case 3; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %only tactile, channel 2
+            case 4; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redSignal]; %vision-audio, channel 1
+            case 5; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %vision-tactile, channel 2
+            case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redSignal]; %audio-tactile, channel 1+2
+            case 7; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redSignal]; %vision-audio-tactile, channel 1+2
         end
     end
 end
 
 % define trigger profiles for optogenetic cases
-W.TriggerProfiles(51, 3) = 3; %red laser on location 1 (RedOne)
-W.TriggerProfiles(52, 4) = 4; %blue laser on location 1 (BlueOne)
-W.TriggerProfiles(53, 5) = 3; %red laser on location 2 (RedTwo)
-W.TriggerProfiles(54, 6) = 4; %blue laser on location 2 (BlueTwo)
-W.TriggerProfiles(55, [3 5]) = 3; %red laser on location 1+2 (RedBoth)
-W.TriggerProfiles(56, [4 6]) = 4; %blue laser on location 1+2 (BlueBoth)
+W.TriggerProfiles(51, [3 7]) = [3 enableTTL]; %red laser on location 1 (RedOne)
+W.TriggerProfiles(52, [4 7]) = [4 enableTTL]; %blue laser on location 1 (BlueOne)
+W.TriggerProfiles(53, [5 8]) = [3 enableTTL]; %red laser on location 2 (RedTwo)
+W.TriggerProfiles(54, [6 8]) = [4 enableTTL]; %blue laser on location 2 (BlueTwo)
+W.TriggerProfiles(55, [3 5 7 8]) = [3 3 enableTTL enableTTL]; %red laser on location 1+2 (RedBoth)
+W.TriggerProfiles(56, [4 6 7 8]) = [4 4 enableTTL enableTTL]; %blue laser on location 1+2 (BlueBoth)
 
 handles.WavePlayer = W; %make sure this is the same
 
@@ -277,6 +280,9 @@ if ~isdir(dPath)
     mkdir(dPath);
 end
 
+Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
+Screen('Flip', window);
+java.lang.Thread.sleep(5000); %wait for 5 seconds before moving forward
 for iTrials = 1:str2double(handles.NrTrials.String)
     handles.Status.String = ['Running - Trial ' num2str(iTrials) ' ...'];drawnow();
     StimData.TimeStamps{iTrials} = RunTrial(iTrials); %run current trial cycle
@@ -314,7 +320,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     optoOut = []; %optogenetic output profile
     if ~isempty(optoNames(cOptoVals))
         switch optoNames{cOptoVals}
-            case 'RedOne'; optoOut = 51; %red laser on location 1
+            case 'RedOne'; optoOut = 51;  %red laser on location 1
             case 'BlueOne'; optoOut = 52; %blue laser on location 1
             case 'RedTwo'; optoOut = 53; %red laser on location 2
             case 'BlueTwo'; optoOut = 54; %blue laser on location 2
@@ -327,6 +333,20 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
                 case 'RedTwo'; optoOut = []; cStim = cStim + 20; %red laser on location 2 but with sensory stimuli
                 case 'RedBoth'; optoOut = []; cStim = cStim + 30; %red laser on location 1 and 2 but with sensory stimuli
             end
+        end
+        
+        if ~isempty(handles.Arduino)
+            % check byte for enable signal
+            if contains(optoNames{cOptoVals}, 'Red')
+                enableByte = 1; %red lasers
+            else
+                enableByte = 2; %blue lasers
+            end
+            
+            % switch enable lines through connected teensy (if present). Send one
+            % value for each laser to identify enabled wavelength.
+            % 1 = red, 2 = cyan, 3 = violet.
+            fwrite(handles.Arduino, [150 enableByte enableByte]);
         end
     end
     
@@ -411,24 +431,24 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             trigerAnalog = cStim ~= 1;
         end
         
-        if pulseOn && visualOn
+        if (cTime - pulseStart) < pulseDur && cTime >= sensoryStart && visualOn
             % Draw grating texture, rotated by "angle":
             Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
-            %Draw aperture
-            Screen('DrawTexture', window, masktex(mCase), [0 0 visibleSize visibleSize], destRect);
+            Screen('DrawTexture', window, masktex(mCase), [0 0 visibleSize visibleSize], destRect); %Draw aperture
+            Screen('FillRect', window, 255, [0 0 TrigSize TrigSize]); %draw indicator
         else
             Screen('FillRect', window,Background); %show background during gap
             Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
         end
         
-        %draw frame indicator
-        if rem(Cnt,2) == 1 %show white square on even frame count
-            % Screen('FillRect', window,255,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
-            Screen('FillRect', window,255,[0 0 TrigSize TrigSize])
-        else %show black square on uneven frame count
-            % Screen('FillRect', window,0,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
-            Screen('FillRect', window,0,[0 0 TrigSize TrigSize])
-        end
+%         %draw frame by frame indicator - dont use this if indicator should show onset of visual stimulus
+%         if rem(Cnt,2) == 1 %show white square on even frame count
+%             % Screen('FillRect', window,255,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
+%             Screen('FillRect', window,255,[0 0 TrigSize TrigSize])
+%         else %show black square on uneven frame count
+%             % Screen('FillRect', window,0,[screenXpixels-TrigSize screenYpixels-TrigSize screenXpixels screenYpixels])
+%             Screen('FillRect', window,0,[0 0 TrigSize TrigSize])
+%         end
         
         %show frame
         cTime = Screen('Flip', window, cTime + 0.5 * ifi);
