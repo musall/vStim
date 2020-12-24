@@ -112,11 +112,14 @@ pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap 
 
 % auditory noise bursts
 noise = rand(1,pulseDur*analogRate)-0.5; noise([1 end]) = 0; %single burst
+audioAmp = unique(BasicVarVals(ismember(BasicVarNames,'AudioAmp'),:)); audioAmp = audioAmp(1); %amplitude if auditory noise
+puffDur = unique(BasicVarVals(ismember(BasicVarNames,'PuffDur'),:)); puffDur = puffDur(1); %duration of air puffs (only used if shorter as pulsedur)
 makePuff = unique(BasicVarVals(ismember(BasicVarNames,'MakePuff'),:)); makePuff = makePuff(1) == 1; %flag to use air puffs or not
 
 % tactile
 if makePuff % tactile air puffs
-    puff = ones(1,pulseDur*analogRate); puff(end) = 0;
+    puffDur = min([puffDur, pulseDur]);
+    puff = ones(1,puffDur*analogRate); puff(end) = 0;
 else
     % tactile buzzes from actuator
     resFreq = 205; %resonant frequency of tactile actuator
@@ -130,8 +133,8 @@ else
 end
 
 % load stimuli to output module
-W.loadWaveform(1,noise.*5); %signal 1 is auditory
-W.loadWaveform(2,puff.*5); %signal 2 is tactile
+W.loadWaveform(1,noise * 5 * audioAmp); %signal 1 is auditory
+W.loadWaveform(2,puff * 5); %signal 2 is tactile
 
 % optogenetic stimulus
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
@@ -142,14 +145,17 @@ bluePower = unique(BasicVarVals(ismember(BasicVarNames,'BluePower'),:)); bluePow
 
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, redPower, bluePower); %get waveforms for optogenetics
 optoStim = optoStim .*5; %scale to 5V output
+optoPulseDur = ceil(pulseDur / (1/optoFreq)) * (1/optoFreq); %make sure pluse duration is a divider of optoFreq
 
 % load stimuli to output module
 W.loadWaveform(3,optoStim(1,:)); %signal 3 is red
 W.loadWaveform(4,optoStim(2,:)); %signal 4 is blue
 redPulseSignal = 5; %keep which signal is used for red pulses
-W.loadWaveform(redPulseSignal,optoStim(1,1:ceil(pulseDur / pulseDur) * pulseDur * analogRate)); %signal 5 is red pulse
-enableTTL = 6; %keep which signal is used to enable lasers
-W.loadWaveform(6,ones(1,size(optoStim,2)) .* 5); %signal 6 is enable trigger
+W.loadWaveform(redPulseSignal,optoStim(1,1: optoPulseDur * analogRate)); %signal 5 is red pulse
+seqEnable = 6; %keep which signal is used to enable lasers sequence
+W.loadWaveform(seqEnable,ones(1,size(optoStim,2)) .* 3.3); %signal 6 is enable trigger
+pulseEnable = 7; %keep which signal is used to enable laser pulse
+W.loadWaveform(pulseEnable,ones(1,optoPulseDur * analogRate) .* 3.3); %signal 7 is enable trigger
 
 % create trigger profiles that match different stimype
 redCases = {[3 7] [5 8] [3 5 7 8]};
@@ -168,7 +174,7 @@ for stimTypes = 1 : 7
         % make extra cases where red light is triggered with sensory
         % stimuli. make the same triggerprofile but add red pulses. This
         % will presumably range between profiles 11 and 37.
-        redSignal = [repmat(redPulseSignal, 1, length(redCases{redLEDs})/2) repmat(enableTTL, 1, length(redCases{redLEDs})/2)];
+        redSignal = [repmat(redPulseSignal, 1, length(redCases{redLEDs})/2) repmat(pulseEnable, 1, length(redCases{redLEDs})/2)];
         switch stimTypes
             case 1; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %only vision
             case 2; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redSignal]; %only audio, channel 1
@@ -182,12 +188,12 @@ for stimTypes = 1 : 7
 end
 
 % define trigger profiles for optogenetic cases
-W.TriggerProfiles(51, [3 7]) = [3 enableTTL]; %red laser on location 1 (RedOne)
-W.TriggerProfiles(52, [4 7]) = [4 enableTTL]; %blue laser on location 1 (BlueOne)
-W.TriggerProfiles(53, [5 8]) = [3 enableTTL]; %red laser on location 2 (RedTwo)
-W.TriggerProfiles(54, [6 8]) = [4 enableTTL]; %blue laser on location 2 (BlueTwo)
-W.TriggerProfiles(55, [3 5 7 8]) = [3 3 enableTTL enableTTL]; %red laser on location 1+2 (RedBoth)
-W.TriggerProfiles(56, [4 6 7 8]) = [4 4 enableTTL enableTTL]; %blue laser on location 1+2 (BlueBoth)
+W.TriggerProfiles(51, [3 7]) = [3 seqEnable]; %red laser on location 1 (RedOne)
+W.TriggerProfiles(52, [4 7]) = [4 seqEnable]; %blue laser on location 1 (BlueOne)
+W.TriggerProfiles(53, [5 8]) = [3 seqEnable]; %red laser on location 2 (RedTwo)
+W.TriggerProfiles(54, [6 8]) = [4 seqEnable]; %blue laser on location 2 (BlueTwo)
+W.TriggerProfiles(55, [3 5 7 8]) = [3 3 seqEnable seqEnable]; %red laser on location 1+2 (RedBoth)
+W.TriggerProfiles(56, [4 6 7 8]) = [4 4 seqEnable seqEnable]; %blue laser on location 1+2 (BlueBoth)
 
 handles.WavePlayer = W; %make sure this is the same
 
@@ -330,7 +336,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         if RedSensoryPulses
             switch optoNames{cOptoVals}
                 case 'RedOne'; optoOut = []; cStim = cStim + 10; %red laser on location 1 but with sensory stimuli
-                case 'RedTwo'; optoOut = []; cStim = cStim + 20; %red laser on location 2 but with sensory stimuli
+                case 'RedTwo'; optoOut = []; cStim = cStim + 20; %red laser on location 2  but with sensory stimuli
                 case 'RedBoth'; optoOut = []; cStim = cStim + 30; %red laser on location 1 and 2 but with sensory stimuli
             end
         end
@@ -408,6 +414,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     pulseStart = cTime - (pulseDur + pulseGap); %first pulse can start immediately
     pulseCnt = 0;
     trigerAnalog = false;
+    trigerCamera = false;
     
     if optoShift < 0
         sensoryStart = cTime - optoShift; %shift start time of first sensory pulse
@@ -429,6 +436,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             pulseStart = cTime; %start next pulse
             pulseCnt = pulseCnt + 1;
             trigerAnalog = cStim ~= 1;
+            trigerCamera = pulseCnt == 1; %send camera trigger on first pulse
         end
         
         if (cTime - pulseStart) < pulseDur && cTime >= sensoryStart && visualOn
@@ -464,7 +472,13 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             handles.WavePlayer.play(optoOut);
             optoOut = []; %dont trigger again this trial
         end
-
+        
+        if trigerCamera && ~isempty(handles.Arduino)
+            %send camera trigger from arduino
+            fwrite(handles.Arduino, 103);
+            trigerCamera = false;
+        end
+        
         [keyIsDown, ~, keyCode, ~] = KbCheck;
         if keyIsDown && any(strcmpi(KbName(find(keyCode)),'ESCAPE')) %abort presentation
             handles.ExperimentNr.String = num2str(str2double(handles.ExperimentNr.String)+1); %update experiment counter
