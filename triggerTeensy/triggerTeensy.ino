@@ -5,6 +5,7 @@
 // pins to create triggers
 #define PIN_TRIALTRIG 11 // trial-start trigger that can be switched by serial command 'MAKE_TRIALTRIGGER'
 #define PIN_STIMTRIG 12 // stimulus trigger that can be switched by serial command 'MAKE_STIMTRIGGER'
+#define PIN_CAMTRIG 13 // camera trigger that can be switched by serial command 'MAKE_CAMTRIGGER'
 
 // output for FISBA module 1
 #define PIN_GND_1 22 // make this the ground pin for laser 1
@@ -31,6 +32,7 @@
 // inputs
 #define MAKE_STIMTRIGGER 101 // identifier to produce a stimulus trigger
 #define MAKE_TRIALTRIGGER 102 // identifier to produce a trial onset trigger
+#define MAKE_CAMTRIGGER 103 // identifier to produce a trigger for behavioral video cameras
 #define CHANGE_ENABLETRIGGERS 150 // identifier to adjust trigger output lines (expects two subsequent bytes: a number between 1-3 to enable either red (1), cyan(2) or violet(3) output for each module
 
 #define GOT_BYTE 10 // positive handshake for module_info
@@ -41,12 +43,15 @@
 bool midRead = false;
 int FSMheader = 0;
 unsigned long clocker = millis();
+unsigned long camClocker = millis();
 unsigned long trialClocker = millis();
 unsigned long stimClocker = millis();
 int stimDur = 10; // duration of stimulus trigger in ms
 int trialDur = 50; // duration of trial trigger in ms
+int camDur = 200; // duration of camera trigger in ms
 bool stimTrigger = false;
 bool trialTrigger = false;
+bool camTrigger = false;
 byte cByte = 0; // temporary variable for serial communication
 volatile int enable_1 = PIN_RED_1; //current enable line for laser module 1
 volatile int enable_2 = PIN_RED_2; //current enable line for laser module 2
@@ -106,6 +111,15 @@ void loop() {
       Serial.write(GOT_TRIGGER);
       midRead = false;
     }
+    
+    else if (FSMheader == MAKE_CAMTRIGGER) { // create trial-onset trigger
+      camTrigger = true;
+      camClocker = millis();
+      digitalWriteFast(PIN_CAMTRIG, HIGH); // set camera trigger to high
+
+      Serial.write(GOT_TRIGGER);
+      midRead = false;
+    }
 
     else if (FSMheader == CHANGE_ENABLETRIGGERS) { // check which enable lines should be used for laser modules 1 and 2
 
@@ -136,7 +150,7 @@ void loop() {
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // make stim trigger
+  // check stim trigger
   if (stimTrigger) {
     if ((millis() - stimClocker) > stimDur) {  // done with stim trigger
       digitalWriteFast(PIN_STIMTRIG, LOW); // set stimulus trigger to low
@@ -144,11 +158,19 @@ void loop() {
     }
   }
 
-  // make trial trigger
+  // check trial trigger
   if (trialTrigger) {
     if ((millis() - trialClocker) > trialDur) {  // done with trial trigger
       digitalWriteFast(PIN_TRIALTRIG, LOW); // set trial trigger to low
       trialTrigger = false;
+    }
+  }
+  
+  // check camera trigger
+  if (camTrigger) {
+    if ((millis() - camClocker) > camDur) {  // done with camera trigger
+      digitalWriteFast(PIN_CAMTRIG, LOW); // set trial trigger to low
+      camTrigger = false;
     }
   }
 }
