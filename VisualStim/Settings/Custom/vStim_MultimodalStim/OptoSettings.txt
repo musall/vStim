@@ -9,6 +9,8 @@ sTemporalFreq          5
 sBackground            0.5
 sOptoDur               1.2
 sOptoShift             -0.2
+sPuffDur            0.05
+sAudioAmp            0.5
 sPulseCount            2
 sPulseDur              0.1
 sPulseGap              0.4
