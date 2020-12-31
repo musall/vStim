@@ -149,27 +149,27 @@ redPower2 = max([min([redPower2(1),1]), 0]); %make its one value between 0 and 1
 bluePower1 = max([min([bluePower1(1),1]), 0]); %make its one value between 0 and 1
 bluePower2 = max([min([bluePower2(1),1]), 0]); %make its one value between 0 and 1
 
-
-if redPower1 > 1; redPower1 = 1; end; if redPower1 < 0; redPower1 = 0; end
-
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq); %get waveforms for optogenetics
 optoStim = optoStim .* 3.3; %scale to 3.3V output
 optoPulseDur = ceil(pulseDur / (1/optoFreq)) * (1/optoFreq); %make sure pluse duration is a divider of optoFreq
 
 % load stimuli to output module
+redSeqSignals = [3 4]; %keep which signals are used for red sequences
 W.loadWaveform(3,optoStim(1,:) * redPower1); %signal 3 is red 1 
 W.loadWaveform(4,optoStim(1,:) * redPower2); %signal 4 is red 2
+
+blueSeqSignals = [5 6]; %keep which signals are used for blue sequences
 W.loadWaveform(5,optoStim(2,:) * bluePower1); %signal 5 is blue 1
 W.loadWaveform(6,optoStim(2,:) * bluePower2); %signal 6 is blue 2
 
 redPulseSignals = [7 8]; %keep which signals are used for red pulses
-W.loadWaveform(redPulseSignals, optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
-W.loadWaveform(redPulseSignals, optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
+W.loadWaveform(redPulseSignals(1), optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
+W.loadWaveform(redPulseSignals(2), optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
 
 seqEnable = 9; %keep which signal is used to enable lasers sequence
 W.loadWaveform(seqEnable,ones(1,size(optoStim,2)) .* 3.3); %signal 9 is enable trigger
 
-pulseEnable = 7; %keep which signal is used to enable laser pulse
+pulseEnable = 10; %keep which signal is used to enable laser pulse
 W.loadWaveform(pulseEnable,ones(1,optoPulseDur * analogRate) .* 3.3); %signal 10 is pulse enable trigger
 
 % create trigger profiles that match different stimype
@@ -189,7 +189,11 @@ for stimTypes = 1 : 7
         % make extra cases where red light is triggered with sensory
         % stimuli. make the same triggerprofile but add red pulses. This
         % will presumably range between profiles 11 and 37.
-        redSignal = [repmat(redPulseSignals, 1, length(redCases{redLEDs})/2) repmat(pulseEnable, 1, length(redCases{redLEDs})/2)];
+        if redLEDs == 3
+            redSignal = [redPulseSignals, repmat(pulseEnable, 1, length(redCases{redLEDs})/2)];
+        else
+            redSignal = [redPulseSignals(redLEDs), repmat(pulseEnable, 1, length(redCases{redLEDs})/2)];
+        end
         switch stimTypes
             case 1; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %only vision
             case 2; W.TriggerProfiles(redLEDs*10 + stimTypes, [1 redCases{redLEDs}]) = [1 redSignal]; %only audio, channel 1
@@ -203,12 +207,12 @@ for stimTypes = 1 : 7
 end
 
 % define trigger profiles for optogenetic cases
-W.TriggerProfiles(51, [3 7]) = [3 seqEnable]; %red laser on location 1 (RedOne)
-W.TriggerProfiles(52, [4 7]) = [4 seqEnable]; %blue laser on location 1 (BlueOne)
-W.TriggerProfiles(53, [5 8]) = [3 seqEnable]; %red laser on location 2 (RedTwo)
-W.TriggerProfiles(54, [6 8]) = [4 seqEnable]; %blue laser on location 2 (BlueTwo)
-W.TriggerProfiles(55, [3 5 7 8]) = [3 3 seqEnable seqEnable]; %red laser on location 1+2 (RedBoth)
-W.TriggerProfiles(56, [4 6 7 8]) = [4 4 seqEnable seqEnable]; %blue laser on location 1+2 (BlueBoth)
+W.TriggerProfiles(51, [3 7]) = [redSeqSignals(1), seqEnable]; %red laser on location 1 (RedOne)
+W.TriggerProfiles(52, [4 7]) = [blueSeqSignals(1), seqEnable]; %blue laser on location 1 (BlueOne)
+W.TriggerProfiles(53, [5 8]) = [redSeqSignals(2), seqEnable]; %red laser on location 2 (RedTwo)
+W.TriggerProfiles(54, [6 8]) = [blueSeqSignals(2), seqEnable]; %blue laser on location 2 (BlueTwo)
+W.TriggerProfiles(55, [3 5 7 8]) = [redSeqSignals, seqEnable, seqEnable]; %red laser on location 1+2 (RedBoth)
+W.TriggerProfiles(56, [4 6 7 8]) = [blueSeqSignals, seqEnable, seqEnable]; %blue laser on location 1+2 (BlueBoth)
 
 handles.WavePlayer = W; %make sure this is the same
 
