@@ -1220,7 +1220,7 @@ while (Found == 0) && (x < length(Ports)) && ~isempty(Ports{1})
             pause(1);
         end
         flushinput(handles.Arduino);
-        fwrite(handles.Arduino,50); %check arduino
+        fwrite(handles.Arduino,[150 1 1]); %check arduino
         
         tic
         while handles.Arduino.BytesAvailable == 0  % wait for handshake for a max of 1s
@@ -1229,7 +1229,7 @@ while (Found == 0) && (x < length(Ports)) && ~isempty(Ports{1})
             end
         end
         Byte = fread(handles.Arduino,1); %correct magic number is 10
-        if Byte == 10
+        if Byte == 11
             Found = x; %correct arduino
         else
             fclose(handles.Arduino);

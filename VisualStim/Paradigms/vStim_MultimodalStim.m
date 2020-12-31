@@ -11,6 +11,7 @@ function vStim_MultimodalStim(handles)
 % Stimtype 5; vision-tactile, channel 2
 % Stimtype 6; audio-tactile, channel 1+2
 % Stimtype 7; vision-audio-tactile, channel 1+2
+% Stimtype 8; empty trial. writes one '0' to channel 0.
 %
 % Variables that begin with 'optoCases' identify cases where optogenetic
 % stimulation should be combiend with sensory stimulation. The values of
@@ -174,7 +175,7 @@ W.loadWaveform(pulseEnable,ones(1,optoPulseDur * analogRate) .* 3.3); %signal 10
 
 % create trigger profiles that match different stimype
 redCases = {[3 7] [5 8] [3 5 7 8]};
-for stimTypes = 1 : 7
+for stimTypes = 1 : 8
     switch stimTypes
         case 1 %only vision, no analog output needed
         case 2; W.TriggerProfiles(stimTypes, 1) = 1; %only audio, channel 1
@@ -183,6 +184,7 @@ for stimTypes = 1 : 7
         case 5; W.TriggerProfiles(stimTypes, 2) = 2; %vision-tactile, channel 2
         case 6; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %audio-tactile, channel 1+2
         case 7; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %vision-audio-tactile, channel 1+2
+        case 8; W.TriggerProfiles(stimTypes, 1) = 0; %empty trial
     end
     
     for redLEDs = 1:3
@@ -202,6 +204,7 @@ for stimTypes = 1 : 7
             case 5; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %vision-tactile, channel 2
             case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redSignal]; %audio-tactile, channel 1+2
             case 7; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redSignal]; %vision-audio-tactile, channel 1+2
+            case 8; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %red pulses only
         end
     end
 end
