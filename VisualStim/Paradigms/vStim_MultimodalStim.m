@@ -140,10 +140,10 @@ W.loadWaveform(2,puff * 5); %signal 2 is tactile
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
 optoRamp = unique(BasicVarVals(ismember(BasicVarNames,'OptoRamp'),:)); optoRamp = optoRamp(1); %duration of ramp after square wave
 optoFreq = unique(BasicVarVals(ismember(BasicVarNames,'OptoFreq'),:)); optoFreq = optoFreq(1); %frequency of square wave stimulus
-redPower1 = unique(BasicVarVals(ismember(BasicVarNames,'RedPower1'),:)); %power of red laser 1
-redPower2 = unique(BasicVarVals(ismember(BasicVarNames,'RedPower2'),:)); redPower2 = redPower2(1); %power of red laser 2
-bluePower1 = unique(BasicVarVals(ismember(BasicVarNames,'BluePower1'),:)); bluePower1 = bluePower1(1); %power of blue laser 1
-bluePower2 = unique(BasicVarVals(ismember(BasicVarNames,'BluePower2'),:)); bluePower2 = bluePower2(1); %power of blue laser 2
+redPower1 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerOne'),:)); %power of red laser 1
+redPower2 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerTwo'),:)); redPower2 = redPower2(1); %power of red laser 2
+bluePower1 = unique(BasicVarVals(ismember(BasicVarNames,'BluePowerOne'),:)); bluePower1 = bluePower1(1); %power of blue laser 1
+bluePower2 = unique(BasicVarVals(ismember(BasicVarNames,'BluePowerTwo'),:)); bluePower2 = bluePower2(1); %power of blue laser 2
 redPower1 = max([min([redPower1(1),1]), 0]); %make its one value between 0 and 1
 redPower2 = max([min([redPower2(1),1]), 0]); %make its one value between 0 and 1
 bluePower1 = max([min([bluePower1(1),1]), 0]); %make its one value between 0 and 1

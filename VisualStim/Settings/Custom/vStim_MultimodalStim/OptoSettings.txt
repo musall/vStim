@@ -17,9 +17,11 @@ sPulseGap              0.4
 sMakePuff              1
 sOptoRamp              0.5
 sOptoFreq              40
-sRedPower              0.5
+sRedPowerOne              0.5
+sRedPowerTwo              0.5
 sRedSensoryPulses      1
-sBluePower             0.5
+sBluePowerOne             0.5
+sBluePowerTwo             0.5
 sAnalogRate            10000
 sOptoCasesBlueBoth     7
 sOptoCasesRedBoth      2
