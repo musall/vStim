@@ -64,6 +64,7 @@ void setup() {
   // Set pin modes for digital output lines
   pinMode(PIN_STIMTRIG, OUTPUT);
   pinMode(PIN_TRIALTRIG, OUTPUT);
+  pinMode(PIN_CAMTRIG, OUTPUT);
 
   pinMode(PIN_GND_1, OUTPUT);
   pinMode(PIN_GND_2, OUTPUT);
@@ -94,7 +95,7 @@ void loop() {
       clocker = millis(); // counter to make sure that all serial information arrives within a reasonable time frame (currently 100ms)
     }
 
-    else if (FSMheader == MAKE_STIMTRIGGER) { // create stimulus trigger
+    if (FSMheader == MAKE_STIMTRIGGER) { // create stimulus trigger
       stimTrigger = true;
       stimClocker = millis();
       digitalWriteFast(PIN_STIMTRIG, HIGH); // set stimulus trigger to high
@@ -103,7 +104,7 @@ void loop() {
       midRead = false;
     }
 
-    else if (FSMheader == MAKE_TRIALTRIGGER) { // create trial-onset trigger
+    if (FSMheader == MAKE_TRIALTRIGGER) { // create trial-onset trigger
       trialTrigger = true;
       trialClocker = millis();
       digitalWriteFast(PIN_TRIALTRIG, HIGH); // set trial trigger to high
@@ -112,7 +113,7 @@ void loop() {
       midRead = false;
     }
     
-    else if (FSMheader == MAKE_CAMTRIGGER) { // create trial-onset trigger
+    if (FSMheader == MAKE_CAMTRIGGER) { // create trial-onset trigger
       camTrigger = true;
       camClocker = millis();
       digitalWriteFast(PIN_CAMTRIG, HIGH); // set camera trigger to high
@@ -121,7 +122,7 @@ void loop() {
       midRead = false;
     }
 
-    else if (FSMheader == CHANGE_ENABLETRIGGERS) { // check which enable lines should be used for laser modules 1 and 2
+    if (FSMheader == CHANGE_ENABLETRIGGERS) { // check which enable lines should be used for laser modules 1 and 2
 
       if (Serial.available() > 1){
         // check laser l
@@ -145,8 +146,8 @@ void loop() {
     }
   }
 
-  if (midRead && ((millis() - clocker) >= 100)) {
-    midRead = 0; Serial.write(DID_ABORT);
+  if (midRead && ((millis() - clocker) >= 1000)) {
+    midRead = false; Serial.write(FSMheader);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////

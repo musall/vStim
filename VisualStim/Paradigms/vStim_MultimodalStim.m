@@ -111,8 +111,15 @@ pulseCount = unique(BasicVarVals(ismember(BasicVarNames,'PulseCount'),:)); pulse
 pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur = pulseDur(1); %duration of single sensory event
 pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
 
-% auditory noise bursts
-noise = rand(1,pulseDur*analogRate)-0.5; noise([1 end]) = 0; %single burst
+% auditory pulses
+% noise = rand(1,pulseDur*analogRate)-0.5; %single burst
+clickLength = 3; %click is usually 3ms long
+tt = -pi:2*pi*1000/(analogRate*clickLength):pi; tt(end) = [];
+click = (1+cos(tt)).*(sin(2*tt)+sin(4*tt)+sin(6*tt)+sin(8*tt)+sin(16*tt));
+noise = zeros(1,pulseDur*analogRate);
+noise(1:length(click)) = click / max(click) / 2;
+noise([1 end]) = 0;
+
 audioAmp = unique(BasicVarVals(ismember(BasicVarNames,'AudioAmp'),:)); audioAmp = audioAmp(1); %amplitude if auditory noise
 puffDur = unique(BasicVarVals(ismember(BasicVarNames,'PuffDur'),:)); puffDur = puffDur(1); %duration of air puffs (only used if shorter as pulsedur)
 makePuff = unique(BasicVarVals(ismember(BasicVarNames,'MakePuff'),:)); makePuff = makePuff(1) == 1; %flag to use air puffs or not
@@ -173,6 +180,8 @@ W.loadWaveform(seqEnable,ones(1,size(optoStim,2)) .* 3.3); %signal 9 is enable t
 pulseEnable = 10; %keep which signal is used to enable laser pulse
 W.loadWaveform(pulseEnable,ones(1,optoPulseDur * analogRate) .* 3.3); %signal 10 is pulse enable trigger
 
+W.loadWaveform(11,0); %signal 11 is empty
+
 % create trigger profiles that match different stimype
 redCases = {[3 7] [5 8] [3 5 7 8]};
 for stimTypes = 1 : 8
@@ -184,7 +193,7 @@ for stimTypes = 1 : 8
         case 5; W.TriggerProfiles(stimTypes, 2) = 2; %vision-tactile, channel 2
         case 6; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %audio-tactile, channel 1+2
         case 7; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %vision-audio-tactile, channel 1+2
-        case 8; W.TriggerProfiles(stimTypes, 1) = 0; %empty trial
+        case 8; W.TriggerProfiles(stimTypes, 1) = 11; %empty trial
     end
     
     for redLEDs = 1:3
