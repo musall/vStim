@@ -72,10 +72,10 @@ void setup() {
   digitalWriteFast(PIN_GND_2, LOW);
 
   pinMode(PIN_RED_1, OUTPUT);
-  pinMode(PIN_RED_1, OUTPUT);
+  pinMode(PIN_BLUE_1, OUTPUT);
   pinMode(PIN_CYAN_1, OUTPUT);
   pinMode(PIN_RED_2, OUTPUT);
-  pinMode(PIN_RED_2, OUTPUT);
+  pinMode(PIN_BLUE_2, OUTPUT);
   pinMode(PIN_CYAN_2, OUTPUT); 
 
   // Set pin modes for digital input lines

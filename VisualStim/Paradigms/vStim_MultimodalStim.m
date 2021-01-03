@@ -157,9 +157,11 @@ redPower2 = max([min([redPower2(1),1]), 0]); %make its one value between 0 and 1
 bluePower1 = max([min([bluePower1(1),1]), 0]); %make its one value between 0 and 1
 bluePower2 = max([min([bluePower2(1),1]), 0]); %make its one value between 0 and 1
 
-optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq); %get waveforms for optogenetics
+optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, optoRamp); %get waveforms for optogenetics
 optoStim = optoStim .* 3.3; %scale to 3.3V output
-optoPulseDur = ceil(pulseDur / (1/optoFreq)) * (1/optoFreq); %make sure pluse duration is a divider of optoFreq
+% make sure pluse duration is a divider of optoFreq when using pulsed stimuli
+% optoPulseDur = ceil(pulseDur / (1/optoFreq)) * (1/optoFreq);
+optoPulseDur = pulseDur;
 
 % load stimuli to output module
 redSeqSignals = [3 4]; %keep which signals are used for red sequences
@@ -171,8 +173,11 @@ W.loadWaveform(5,optoStim(2,:) * bluePower1); %signal 5 is blue 1
 W.loadWaveform(6,optoStim(2,:) * bluePower2); %signal 6 is blue 2
 
 redPulseSignals = [7 8]; %keep which signals are used for red pulses
-W.loadWaveform(redPulseSignals(1), optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
-W.loadWaveform(redPulseSignals(2), optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
+% W.loadWaveform(redPulseSignals(1), optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
+% W.loadWaveform(redPulseSignals(2), optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
+ramp = 1/(analogRate*optoPulseDur) : 1/(analogRate*optoPulseDur) : 1;
+W.loadWaveform(redPulseSignals(1), ramp * redPower1); %signal 7 is red ramp 1
+W.loadWaveform(redPulseSignals(2), ramp * redPower2); %signal 8 is red ramp 2
 
 seqEnable = 9; %keep which signal is used to enable lasers sequence
 W.loadWaveform(seqEnable,ones(1,size(optoStim,2)) .* 3.3); %signal 9 is enable trigger
@@ -377,7 +382,8 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             if contains(optoNames{cOptoVals}, 'Red')
                 enableByte = 1; %red lasers
             else
-                enableByte = 2; %blue lasers
+%                 enableByte = 2; %blue lasers
+                enableByte = 3; %violet lasers
             end
             
             % switch enable lines through connected teensy (if present). Send one
