@@ -176,7 +176,7 @@ redPulseSignals = [7 8]; %keep which signals are used for red pulses
 % W.loadWaveform(redPulseSignals(1), optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
 % W.loadWaveform(redPulseSignals(2), optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
 % ramp = 1/(analogRate*optoPulseDur) : 1/(analogRate*optoPulseDur) : 1;
-step = round(analogRate*optoPulseDur/2);
+step = 1/round(analogRate*optoPulseDur/2);
 ramp = [step : step : 1 1 - step: -step : 0];
 W.loadWaveform(redPulseSignals(1), ramp * redPower1); %signal 7 is red ramp 1
 W.loadWaveform(redPulseSignals(2), ramp * redPower2); %signal 8 is red ramp 2

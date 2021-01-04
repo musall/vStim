@@ -21,9 +21,10 @@ optoStim = zeros(2, round(sRate*optoDur)); %two channels. First is blue, second 
 % optoStim(1, 1:length(tt)) = (cos(2*pi*optoFreq*tt-pi)+1) ./2;
 
 %ramping stimulus for blue laser channels (second channel)
-signal = ones(1, sRate * optoDur);
-signal(1 : sRate * onRamp) = (1/sRate : 1/sRate : onRamp) ./ onRamp; %change first part to ramp
-signal(sRate * (optoDur - optoRamp) : end) = (optoRamp : -1/sRate : 0) ./ optoRamp; %change last part to ramp
+rampLength = round(sRate * optoDur);
+signal = ones(1, rampLength);
+signal(1 : rampLength) = (1/sRate : 1/sRate : onRamp) ./ onRamp; %change first part to ramp
+signal(round(sRate * (optoDur - optoRamp)) : end) = (optoRamp : -1/sRate : 0) ./ optoRamp; %change last part to ramp
 
 % optoStim(2, :) = signal;
 optoStim(1:2, :) = repmat(signal,2,1);
