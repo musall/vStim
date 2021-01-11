@@ -240,7 +240,7 @@ PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 
 TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
-Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference', 'SkipSyncTests', 1);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
@@ -267,6 +267,18 @@ ScreenSize = textscan(handles.ScreenSize.String,'%f'); %get horizontal screen si
 texsize = BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:)./180*pi; %convert visual angle to radians
 texsize = tan(texsize./2)*str2num(handles.EyeDistance.String); %texsize in cm
 BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:) = round(texsize./(ScreenSize{1}/screenXpixels)); %aperture size in pixels
+
+% load noise texture if needed
+useVisNoise = unique(BasicVarVals(ismember(BasicVarNames,'UseVisNoise'),:)); useVisNoise = useVisNoise(1) == 1; %flag to use pre-computed noise stimulus
+if useVisNoise
+    noiseFile = [fileparts(which(handles.figure1.Name)) filesep 'Misc' filesep 'gaussian_noise.mat';];
+    load(noiseFile, 'gaussian_noise');
+    StimData.noiseFile = noiseFile; %save path to stimulus file for later reference
+    srcNoise = [0 0 size(gaussian_noise,2) size(gaussian_noise,1)];
+    for x = 1 : size(gaussian_noise,3)
+        noiseTex(1,x) =  Screen('MakeTexture', window, uint8(gaussian_noise(:,:,x)));
+    end
+end
 
 %% Produce required textures
 % produce gratings. This is modified from the 'DriftDemo2' code. Check there for explanations
@@ -420,6 +432,8 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     SpatialFreq = BasicVarVals(ismember(BasicVarNames,'SpatialFreq'),cTrial);
     pixPerFrame = SpatialFreq / round(1/ifi) * TemporalFreq; %how many pixels per frame should be shifted to get the bar speed
 
+    useVisNoise = BasicVarVals(ismember(BasicVarNames,'UseVisNoise'),cTrial) == 1;
+
     if BasicVarVals(ismember(BasicVarNames,'UseAperture'),cTrial) == 1
         visibleSize = round(BasicVarVals(ismember(BasicVarNames,'ApertureSize'),cTrial)/2)*2+1;
     else
@@ -462,6 +476,8 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         optoStart = cTime + optoShift; %shift optogenetics relative to stim onset
         sensoryStart = cTime;
     end
+    
+    frameCnt = 0; %counter for pre-computed frames
 
     % start running stimulation
     while(cTime < absStimTime)
@@ -479,10 +495,20 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         end
         
         if (cTime - pulseStart) < pulseDur && cTime >= sensoryStart && visualOn
-            % Draw grating texture, rotated by "angle":
-            Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
-            Screen('DrawTexture', window, masktex(mCase), [0 0 visibleSize visibleSize], destRect); %Draw aperture
+            if useVisNoise
+                frameCnt = frameCnt + 1;
+                if frameCnt > length(noiseTex)
+                    frameCnt = 1;
+                end
+                Screen('DrawTexture', window, noiseTex(frameCnt), srcNoise, [0 0 screenXpixels screenYpixels], 0);
+                
+            else
+                % Draw grating texture, rotated by "angle":
+                Screen('DrawTexture', window, gratingtex(iCase), srcRect, destRect, BasicVarVals(ismember(BasicVarNames,'StimAngle'),cTrial),[],[],[],[],kPsychUseTextureMatrixForRotation);
+                Screen('DrawTexture', window, masktex(mCase), [0 0 visibleSize visibleSize], destRect); %Draw aperture
+            end
             Screen('FillRect', window, 255, [0 0 TrigSize TrigSize]); %draw indicator
+            
         else
             Screen('FillRect', window,Background); %show background during gap
             Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black

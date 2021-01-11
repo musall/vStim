@@ -3,6 +3,7 @@ syPosition             0
 sVisTriggerSize        50
 sStimAngle             0
 sUseAperture           0
+sUseVisNoise           1
 sApertureSize          50
 sSpatialFreq           0.05
 sTemporalFreq          5
