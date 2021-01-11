@@ -244,7 +244,7 @@ Screen('Preference', 'SkipSyncTests', 1);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
-HideCursor(window);
+% HideCursor(window);
 handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 [screenXpixels, screenYpixels] = Screen('WindowSize', window); % Get the size of the current window
 handles.ScreenRes.String = [num2str(screenXpixels) ' x ' num2str(screenYpixels)];
@@ -510,7 +510,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             Screen('FillRect', window, 255, [0 0 TrigSize TrigSize]); %draw indicator
             
         else
-            Screen('FillRect', window,Background); %show background during gap
+            Screen('FillRect', window, Background); %show background during gap
             Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
         end
         
