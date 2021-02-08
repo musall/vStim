@@ -91,9 +91,10 @@ handles.Arduino = [];
 handles.WavePlayer = [];
 info.AvailableSerialPorts = FindSerialPort();
 handles.SerialDevices.Value = 1;
-handles.camByte = 103;
-handles.trialByte = 102;
 handles.stimByte = 101;
+handles.trialByte = 102;
+handles.camByte = 103;
+handles.stopCamByte = 104;
 
 if isempty(info.AvailableSerialPorts)
     disp('No available serial ports found')

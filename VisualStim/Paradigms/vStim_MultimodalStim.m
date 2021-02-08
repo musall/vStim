@@ -552,12 +552,18 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             return;
         end
     end
-    
+
     %blank screen after stimulus presentation
-    handles.WavePlayer.stop; %stop analog output
     Screen('FillRect', window,Background);
     Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
-    Screen('Flip', window); %
+    Screen('Flip', window);
+    
+    %stop analog output
+    handles.WavePlayer.stop;
+    
+    % stop camera trigger after sequence is over
+    fwrite(handles.Arduino, handles.stopCamByte)
+    
     Priority(0);
 end
 

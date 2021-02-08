@@ -32,7 +32,8 @@
 // inputs
 #define MAKE_STIMTRIGGER 101 // identifier to produce a stimulus trigger
 #define MAKE_TRIALTRIGGER 102 // identifier to produce a trial onset trigger
-#define MAKE_CAMTRIGGER 103 // identifier to produce a trigger for behavioral video cameras
+#define MAKE_CAMTRIGGER 103 // identifier to produce a trigger for video cameras
+#define STOP_CAMTRIGGER 104 // identifier to stop the trigger for video cameras
 #define CHANGE_ENABLETRIGGERS 150 // identifier to adjust trigger output lines (expects two subsequent bytes: a number between 1-3 to enable either red (1), cyan(2) or violet(3) output for each module
 
 #define GOT_BYTE 10 // positive handshake for module_info
@@ -48,7 +49,7 @@ unsigned long trialClocker = millis();
 unsigned long stimClocker = millis();
 int stimDur = 10; // duration of stimulus trigger in ms
 int trialDur = 50; // duration of trial trigger in ms
-int camDur = 200; // duration of camera trigger in ms
+int camDur = 30000; // maximal duration of camera trigger in ms (if no stop byte is received)
 bool stimTrigger = false;
 bool trialTrigger = false;
 bool camTrigger = false;
@@ -117,6 +118,15 @@ void loop() {
       camTrigger = true;
       camClocker = millis();
       digitalWriteFast(PIN_CAMTRIG, HIGH); // set camera trigger to high
+
+      Serial.write(GOT_TRIGGER);
+      midRead = false;
+    }
+
+    if (FSMheader == STOP_CAMTRIGGER) { // create trial-onset trigger
+      camTrigger = false;
+      camClocker = millis();
+      digitalWriteFast(PIN_CAMTRIG, LOW); // set camera trigger to low
 
       Serial.write(GOT_TRIGGER);
       midRead = false;
