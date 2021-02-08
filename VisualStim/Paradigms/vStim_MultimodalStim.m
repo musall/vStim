@@ -240,11 +240,12 @@ PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 
 TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
-Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference', 'SkipSyncTests', 0);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
+% window = Screen('OpenWindow', screenNumber, Background, [0 0 TrigSize TrigSize]*2); %open ptb window and save handle in pSettings
 Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
-% HideCursor(window);
+HideCursor(window);
 handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 [screenXpixels, screenYpixels] = Screen('WindowSize', window); % Get the size of the current window
 handles.ScreenRes.String = [num2str(screenXpixels) ' x ' num2str(screenYpixels)];
@@ -540,7 +541,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         
         if trigerCamera && ~isempty(handles.Arduino)
             %send camera trigger from arduino
-            fwrite(handles.Arduino, 103);
+            fwrite(handles.Arduino, handles.camByte);
             trigerCamera = false;
         end
         
