@@ -91,6 +91,7 @@ handles.Arduino = [];
 handles.WavePlayer = [];
 info.AvailableSerialPorts = FindSerialPort();
 handles.SerialDevices.Value = 1;
+handles.camByte = 103;
 handles.trialByte = 102;
 handles.stimByte = 101;
 
