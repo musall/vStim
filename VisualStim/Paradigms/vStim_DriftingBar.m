@@ -239,6 +239,11 @@ function [timeStamps,barShift,FrameCounts] = RunTrial(cTrial)
         timeStamps(Cnt) = cTime; 
         FrameCounts(Cnt) = tCnt;
         
+        % produce camByte on first stimulus
+        if Cnt == 1 && ~isempty(handles.Arduino)
+            fwrite(handles.Arduino, handles.camByte)
+        end
+        
         %produce triggers if serial port is present
         if ~isempty(handles.SerialPort)
             IOPort('ConfigureSerialPort',handles.SerialPort,['DTR=1,RTS=' int2str(rem(Cnt,2))]); %first line is one during stimulation, second line goes on and off on each frame switch
@@ -267,11 +272,15 @@ function [timeStamps,barShift,FrameCounts] = RunTrial(cTrial)
     Screen('FillRect', window,Background);
     cTime = Screen('Flip', window);
     
-        %produce triggers if serial port is present
+    % stop camera trigger after sequence
+    if Cnt == 1 && ~isempty(handles.Arduino)
+        fwrite(handles.Arduino, handles.stopCamByte)
+    end
+        
+    %produce triggers if serial port is present
     if ~isempty(handles.SerialPort)
         IOPort('ConfigureSerialPort',handles.SerialPort,'DTR=0,RTS=0'); %first line is one during stimulation, second line goes on and off on each frame switch
     end
-
     Priority(0); % Set to normal priority
 end
 

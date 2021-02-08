@@ -253,10 +253,6 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         end
     end
     
-    % stop camera trigger after sequence is over
-    fwrite(handles.Arduino, handles.stopCamByte)
-
-    
     %produce triggers if serial port is present
     if ~isempty(handles.SerialPort)
         IOPort('ConfigureSerialPort',handles.SerialPort,'DTR=0,RTS=0'); %first line is one during stimulation, second line goes on and off on each frame switch
@@ -266,6 +262,12 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     Screen('FillRect', window,Background);
     Screen('Flip', window); %
     Priority(0);
+    
+    % stop camera trigger after sequence
+    if Cnt == 1 && ~isempty(handles.Arduino)
+        fwrite(handles.Arduino, handles.stopCamByte)
+    end
+    
 end
 
 function ResetHandles
