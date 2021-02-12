@@ -5,24 +5,24 @@ sStimAngle             0
 sUseAperture           0
 sUseVisNoise           1
 sApertureSize          50
-sSpatialFreq           0.05
-sTemporalFreq          5
+sSpatialFreq           0.02
+sTemporalFreq          4
 sBackground            0.5
 sOptoDur               2
 sOptoShift             0
-sPuffDur            0.05
-sAudioAmp            0.5
+sPuffDur               0.05
+sAudioAmp              0.5
 sPulseCount            2
-sPulseDur              0.1
+sPulseDur              0.5
 sPulseGap              0.4
 sMakePuff              1
 sOptoRamp              0.5
 sOptoFreq              40
-sRedPowerOne              0.5
-sRedPowerTwo              0.5
+sRedPowerOne           0.5
+sRedPowerTwo           0.5
 sRedSensoryPulses      1
-sBluePowerOne             0.5
-sBluePowerTwo             0.5
+sBluePowerOne          0.5
+sBluePowerTwo          0.5
 sAnalogRate            10000
 sOptoCasesBlueBoth     0
 sOptoCasesRedBoth      0
@@ -30,4 +30,4 @@ sOptoCasesBlueOne      0
 sOptoCasesBlueTwo      0
 sOptoCasesRedOne       0
 sOptoCasesRedTwo       0
-fStimType              [1  2  3  4  5  6  7]
+fStimType              [1  2  3  4  5]

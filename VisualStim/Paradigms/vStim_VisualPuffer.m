@@ -110,12 +110,16 @@ pulseDur = unique(BasicVarVals(ismember(BasicVarNames,'PulseDur'),:)); pulseDur 
 pulseGap = unique(BasicVarVals(ismember(BasicVarNames,'PulseGap'),:)); pulseGap = pulseGap(1); %gap between sensory events
 
 % prepare tactile stimuli
+tempFreqs = unique(BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),:));
 puffDur = unique(BasicVarVals(ismember(BasicVarNames,'PuffDur'),:)); puffDur = puffDur(1); %duration of air puffs (only used if shorter as pulsedur)
 makePuff = unique(BasicVarVals(ismember(BasicVarNames,'MakePuff'),:)); makePuff = makePuff(1) == 1; %flag to use air puffs or not
 
 if makePuff % make air puffs
+    puff = zeros(1,1/tempFreqs*analogRate);
     puffDur = min([puffDur, pulseDur]);
-    puff = ones(1,puffDur*analogRate); puff(end) = 0;
+    puff(1:puffDur*analogRate) = 1;
+    puff = repmat(puff,1,ceil(pulseDur / (1/tempFreqs))); %make more puffs to match temporal frequency
+    puff(end) = 0; %make sure last value is negative
 else
     % tactile buzzes from actuator
     resFreq = 205; %resonant frequency of tactile actuator
@@ -271,11 +275,10 @@ BasicVarVals(ismember(BasicVarNames,'SpatialFreq'),:) = round(SpatialFreqs./(Scr
 % produce required textures when using different spatial/temporal frequencies or Stimlengths
 vScreenWidth = (2*atan([StimData.ScreenSize{1} StimData.ScreenSize{3}]/(str2num(handles.EyeDistance.String)*2)))/pi*180; %screen size in vis. angle
 SpatialFreqs = unique(BasicVarVals(ismember(BasicVarNames,'SpatialFreq'),:));
-TemporalFreqs = unique(BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),:));
 UseApertures = unique(BasicVarVals(ismember(BasicVarNames,'UseAperture'),:));
 ApertureSizes = unique(BasicVarVals(ismember(BasicVarNames,'ApertureSize'),:));
 FlexNames = {'SpatialFreq','TemporalFreq','UseAperture','ApertureSize'};
-FlexCases = CombVec(SpatialFreqs,TemporalFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
+FlexCases = CombVec(SpatialFreqs,tempFreqs,UseApertures,ApertureSizes); %possible combinations from above variables
 
 for iCases = 1:size(FlexCases,2)
     % compute grating textures
@@ -320,13 +323,13 @@ if ~isdir(dPath)
 end
 
 % check if there is a texture file, generate a new one otherwise
-nrTex = ceil(max(TemporalFreqs) * pulseDur) + 1;
+nrTex = ceil(max(tempFreqs) * pulseDur) + 1;
 cFile = sprintf('noiseStim_%u_%u_%u_%u_%u.mat', screenYpixels, screenXpixels, round(vScreenWidth(1)), round(vScreenWidth(2)), nrTex);
 if exist([fPath filesep cFile], 'file')
     load([fPath filesep cFile], 'noiseArray');
 else
     noiseArray = false(screenYpixels, screenXpixels, nrTex);
-    for iTex = 1: ceil(max(TemporalFreqs) * pulseDur) + 1 %get enough textures to change at 'TemporalFreqs' during one cycle (e.g. 5 textures for 5Hz at 1s cycleDuration)
+    for iTex = 1: ceil(max(tempFreqs) * pulseDur) + 1 %get enough textures to change at 'TemporalFreqs' during one cycle (e.g. 5 textures for 5Hz at 1s cycleDuration)
         cTex = spatialPattern([screenXpixels,screenYpixels],-1,0.05,0.12,vScreenWidth,1)'; %full screen noise pattern
         noiseArray(:,:,iTex) = cTex > 0;
     end
