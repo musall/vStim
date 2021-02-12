@@ -235,7 +235,7 @@ screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliabl
 TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
 Screen('Preference', 'SkipSyncTests', 1);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
-window = Screen('OpenWindow', screenNumber, Background, [0 0 TrigSize TrigSize]*10); %open ptb window and save handle in pSettings
+window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 % window = Screen('OpenWindow', screenNumber, Background, [0 0 TrigSize TrigSize]*2); %open ptb window and save handle in pSettings
 Screen('FillRect', window, 0, [0 0 TrigSize TrigSize]); %make indicator black
 HideCursor(window);
@@ -268,8 +268,8 @@ handles.Status.String = 'Loading textures ...'; drawnow();
 
 %convert spatial frequency input from cpd (cycles per degree) to onscreen pixels per cycle
 SpatialFreqs = 1./BasicVarVals(ismember(BasicVarNames,'SpatialFreq'),:); %spatial frequency in visual degrees per cycle
-SpatialFreqs = SpatialFreqs./180*pi; %convert visual angle to radians
-SpatialFreqs = tan(SpatialFreqs./2) * str2num(handles.EyeDistance.String); %cm per cycle
+SpatialFreqs = SpatialFreqs ./ 180*pi; %convert visual angle to radians
+SpatialFreqs = tan(SpatialFreqs./2) * str2num(handles.EyeDistance.String) * 2; %cm per cycle
 BasicVarVals(ismember(BasicVarNames,'SpatialFreq'),:) = round(SpatialFreqs./(ScreenSize{1}/screenXpixels)); %pixels per cycle
 
 % produce required textures when using different spatial/temporal frequencies or Stimlengths
@@ -378,7 +378,6 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     cStim = BasicVarVals(ismember(BasicVarNames,'StimType'),cTrial); %get stimtype
     visualOn = ismember(cStim, [1 2 4 5]); %flag to present visual stimulus
     useVisNoise = ismember(cStim, [2 5]); %flag to show noise stimulus
-    disp(cStim);
     
     % get current optocase and determine analog outputs
     RedSensoryPulses = unique(BasicVarVals(ismember(BasicVarNames,'RedSensoryPulses'),cStim));
@@ -491,7 +490,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     % start running stimulation
     while(cTime < absStimTime)
         
-        xoffset = mod(Cnt*pixPerFrame,SpatialFreq);
+        xoffset = SpatialFreq - mod(Cnt*pixPerFrame,SpatialFreq);
         srcRect=[xoffset 0 xoffset + visibleSize visibleSize];
         Cnt = Cnt+1;
         
@@ -499,13 +498,17 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         if pulseOn
             pulseStart = cTime; %start next pulse
             pulseCnt = pulseCnt + 1;
-            trigerAnalog = cStim ~= 1;
+            trigerAnalog = cStim > 2;
             trigerCamera = pulseCnt == 1; %send camera trigger on first pulse
+            noiseCnt = 1;
+            noiseTime = cTime;
         end
         
         if (cTime - pulseStart) < pulseDur && cTime >= sensoryStart && visualOn
             if useVisNoise
-                if cTime - noiseTime > 1/BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),cTrial)
+                if cTime - noiseTime > 1/BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),cTrial) && ...
+                        noiseCnt <= ceil(BasicVarVals(ismember(BasicVarNames,'TemporalFreq'),cTrial) * pulseDur);
+                    
                     noiseCnt = noiseCnt + 1;
                     noiseTime = cTime;
                 end
