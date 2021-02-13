@@ -185,7 +185,7 @@ W.loadWaveform(11,0); %signal 11 is empty
 
 % create trigger profiles that match different stimype
 redCases = {[3 7] [5 8] [3 5 7 8]};
-for stimTypes = 1 : 8
+for stimTypes = 1 : 6
     switch stimTypes
         case 1 %only vision, no analog output needed
         case 2 %only vision, no analog output needed

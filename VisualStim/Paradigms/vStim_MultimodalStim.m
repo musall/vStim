@@ -498,7 +498,7 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         if (cTime - pulseStart) < pulseDur && cTime >= sensoryStart && visualOn
             if useVisNoise
                 
-                cTime = cTim - cTim + 1;
+                noiseCnt = noiseCnt + 1;
                 if noiseCnt > length(noiseTex)
                     noiseCnt = 1;
                 end

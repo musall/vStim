@@ -12,7 +12,7 @@ sOptoDur               2
 sOptoShift             0
 sPuffDur               0.05
 sAudioAmp              0.5
-sPulseCount            2
+sPulseCount            1
 sPulseDur              1
 sPulseGap              0.4
 sMakePuff              1
