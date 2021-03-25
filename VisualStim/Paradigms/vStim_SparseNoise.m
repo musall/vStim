@@ -24,11 +24,11 @@ Background = round(max(BasicVarVals(strcmpi(BasicVarNames,'Background')))*255); 
 screenInfo = Screen('Resolution',screenNumber); %get some information on the screen
 
 if max([screenInfo.width, screenInfo.height]) > 1024
-    StimData.resX = screenInfo.height / ceil(max([screenInfo.width, screenInfo.height])/1024) ;  % texture resolution, height
-    StimData.resY = screenInfo.width / ceil(max([screenInfo.width, screenInfo.height])/1024) ;  % texture resolution, width
+    StimData.resY = screenInfo.height / ceil(max([screenInfo.width, screenInfo.height])/1024) ;  % texture resolution, height
+    StimData.resX = screenInfo.width / ceil(max([screenInfo.width, screenInfo.height])/1024) ;  % texture resolution, width
 else
-    StimData.resX = screenInfo.height;  % texture resolution, height
-    StimData.resY = screenInfo.width;  % texture resolution, width
+    StimData.resY = screenInfo.height;  % texture resolution, height
+    StimData.resX = screenInfo.width;  % texture resolution, width
 end
 
 StimData.Paradigm = 'vStim_SparseNoise'; %name of the paradigm
@@ -45,8 +45,8 @@ screenSize = textscan(handles.ScreenSizeAngle.String,'%f%c%f'); %get screen size
 StimData.anglesWidth = screenSize{1}; % width of screen, in visual angles
 StimData.anglesHeight = screenSize{3}; % height of screen, in visual angles
 screenSize = textscan(handles.ScreenSize.String,'%f%c%f'); %get screen size in cm
-StimData.physWidth  = screenSize{3};  % width of screen, in cm
-StimData.physHeight = screenSize{1};  % height of screen, in cm
+StimData.physWidth  = screenSize{1};  % width of screen, in cm
+StimData.physHeight = screenSize{3};  % height of screen, in cm
 
 %eye position on screen
 StimData.zDistBottom = str2double(handles.EyeLineDistBottom.String); % Distance to bottom of screen, along the horizontal eye line, in cm
@@ -60,7 +60,7 @@ wInDeg = atand(StimData.eyeX / minZ) + atand((StimData.physWidth - StimData.eyeX
 wInSq = ceil(wInDeg / StimData.squareSize);
 hInDeg = atand(StimData.eyeY / minZ) + atand((StimData.physHeight - StimData.eyeY) / minZ);
 hInSq = ceil(hInDeg / StimData.squareSize);
-screenSize = [hInDeg wInDeg];
+screenSize = [wInDeg hInDeg];
 
 % Compute where on the image to call the center
 % Center this point in the undistorted image on the mouse's eye (degrees)
@@ -69,7 +69,7 @@ StimData.cartCX = wInSq * atand(StimData.eyeX / minZ) / wInDeg + 1;
 StimData.cartCY = hInSq * atand(StimData.eyeY / minZ) / hInDeg + 1;
 
 %% compute coordinates for sparse noise pattern and initialize PTB window
-h = msgbox(['Generating ' num2str(nrTex) ' coordinates. Screen size is ' num2str(screenSize(2)) ' x ' num2str(screenSize(1)) '.'],'Creating coordinates','help');
+h = msgbox(['Generating ' num2str(nrTex) ' coordinates. Screen size is ' num2str(screenSize(1)) ' x ' num2str(screenSize(2)) '.'],'Creating coordinates','help');
 delete(h.Children(1)); drawnow; %no 'ok' button
 tic
 StimData.nCoords = sparseNoisePatterns(screenSize, StimData.squareSize, StimData.minDist, nrTex);
@@ -78,6 +78,8 @@ if ishandle(h);close(h);end
 uiwait(msgbox('Coordinates generated. Press enter or space to continue.','Wait','modal'));
 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
+trigSize = BasicVarVals(strcmpi(BasicVarNames,'visTriggerSize'));
+Screen('FillRect', window, 255 ,[0 0 trigSize trigSize]) %make sure indicator is black
 HideCursor(window);
 handles.Settings.rRate=Screen('GetFlipInterval', window); %refresh rate
 [xRes, yRes] = Screen('WindowSize', window); % Get the size of the current window
@@ -106,8 +108,8 @@ for iTrials = 1:str2double(handles.NrTrials.String)
     % generate textures for current trial
     firstTex = (iTrials-1)*texPerTrial + 1; %first coordinate in current trial
     rawIms = gridFromCoordsSingle(ceil(screenSize ./ StimData.squareSize), StimData.nCoords(firstTex:firstTex + texPerTrial -1), StimData.bright);
-    imStack = sphereDistortImage(rawIms, StimData); % Run spherical distortion
-    imStack = rot90(imStack, 1);
+    imStack = sphereDistortImage(rot90(rawIms), StimData); % Run spherical distortion
+%     imStack = rot90(imStack, 1);
 %     imStack = permute(imStack,[2 1 3]);
 
     noiseTex = zeros(1,texPerTrial);
@@ -191,7 +193,9 @@ function [timeStamps, texID] = RunTrial % Animate sparse noise stimulation
     end
     sTime = Screen('Flip', window); % Sync start time to the vertical retrace
     cTime = sTime; %current time equals start time
-    absStimTime = sTime + trialDuration;     
+    absStimTime = sTime + trialDuration;
+    showTexChange = true; %flag to indicate texture change via the visual indicator
+    trigerCamera = true; %flag to indicate that a stimulus/camera trigger should be produced
 
     while(cTime < absStimTime)
         
@@ -200,12 +204,11 @@ function [timeStamps, texID] = RunTrial % Animate sparse noise stimulation
         
         %draw frame indicator
         if BasicVarVals(strcmpi(BasicVarNames,'showVisTrigger')) %add visual indicator if showVisTrigger is true
-            if rem(Cnt,2) == 1 %show white square on even frame count
+            if showTexChange %show white square on texture change
                 Screen('FillRect', window,255 ,[0 0 trigSize trigSize])
-%                 Screen('FillRect', window,255,[xRes-trigSize yRes-trigSize xRes yRes])
-            else %show black square on uneven frame count
+                showTexChange = false;
+            else %show black square otherwise
                 Screen('FillRect', window,0 ,[0 0 trigSize trigSize])
-%                 Screen('FillRect', window,0,[xRes-trigSize yRes-trigSize xRes yRes])
             end
         end
         
@@ -225,13 +228,20 @@ function [timeStamps, texID] = RunTrial % Animate sparse noise stimulation
         %check if texture should be changed
         if texCnt < ceil(tCnt / texTime) && texCnt < length(noiseTex)
             texCnt = texCnt + 1;
+            showTexChange = true;
         end
         
         %produce triggers if serial port is present
         if ~isempty(handles.SerialPort)
             IOPort('ConfigureSerialPort',handles.SerialPort,['DTR=1,RTS=' int2str(rem(Cnt,2))]); %first line is one during stimulation, second line goes on and off on each frame switch
         end
-
+        
+        if trigerCamera && ~isempty(handles.Arduino)
+            %send camera trigger from arduino
+            fwrite(handles.Arduino, handles.camByte);
+            trigerCamera = false;
+        end
+        
         [keyIsDown, ~, keyCode, ~] = KbCheck;
         if keyIsDown && any(strcmpi(KbName(find(keyCode)),'ESCAPE')) %abort presentation
             handles.ExperimentNr.String = num2str(str2double(handles.ExperimentNr.String)+1); %update experiment counter
@@ -240,13 +250,18 @@ function [timeStamps, texID] = RunTrial % Animate sparse noise stimulation
         end
     end
     
+    if ~isempty(handles.Arduino)
+        % stop camera trigger after sequence is over
+        fwrite(handles.Arduino, handles.stopCamByte)
+    end
+    
     %produce triggers if serial port is present
     if ~isempty(handles.SerialPort)
         IOPort('ConfigureSerialPort',handles.SerialPort,'DTR=0,RTS=0'); %first line is one during stimulation, second line goes on and off on each frame switch
     end
     
      %bank screen after stimulus presentation
-    Screen('FillRect', window,Background);
+    Screen('FillRect', window, Background);
     Screen('Flip', window); %
     Priority(0);
 end

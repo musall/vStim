@@ -46,12 +46,15 @@ gray = 100;
 
 %% Compute useful coordinates
 
-top = P.physHeight - P.eyeY;
+% top = P.physHeight - P.eyeY;
 % bottom = -dispP.eyeY;
 % right = dispP.eyeX;
-% left = dispP.eyeX - dispP.physWidth;
-left = -P.eyeX;
+% left = P.eyeX - P.physWidth;
+% left = -P.eyeX;
 % right = P.physWidth - P.eyeX;
+
+top = P.eyeY;
+left = P.eyeX - P.physWidth;
 
 
 %% Project monitor pixels into spherical coordinates
