@@ -9,7 +9,8 @@ function vStim_VisualPuffer(handles)
 % Stimtype 3; only tactile, channel 2
 % Stimtype 4; vision1-tactile, channel 2
 % Stimtype 5; vision2-tactile, channel 2
-% Stimtype 6; empty trial. writes one '0' to channel 0.
+% Stimtype 6; control tactile stimulus. creates a tactile stimulus on a second valve that is not directed at the whisker pad.
+% Stimtype 7; empty trial. writes one '0' to channel 0.
 %
 % Variables that begin with 'optoCases' identify cases where optogenetic
 % stimulation should be combiend with sensory stimulation. The values of
@@ -181,18 +182,20 @@ W.loadWaveform(11,0); %signal 11 is empty
 % Stimtype 3; only tactile, channel 2
 % Stimtype 4; vision1-tactile, channel 2
 % Stimtype 5; vision2-tactile, channel 2
-% Stimtype 6; empty trial. writes one '0' to channel 0.
+% Stimtype 6; control tactile, channel 2
+% Stimtype 7; empty trial. writes one '0' to channel 0.
 
 % create trigger profiles that match different stimype
 redCases = {[3 7] [5 8] [3 5 7 8]};
-for stimTypes = 1 : 6
+for stimTypes = 1 : 7
     switch stimTypes
         case 1 %only vision, no analog output needed
         case 2 %only vision, no analog output needed
         case 3; W.TriggerProfiles(stimTypes, 2) = 2; %only tactile, channel 2
         case 4; W.TriggerProfiles(stimTypes, 2) = 2; %vision1-tactile, channel 2
         case 5; W.TriggerProfiles(stimTypes, 2) = 2; %vision2-tactile, channel 2
-        case 6; W.TriggerProfiles(stimTypes, 1) = 11; %empty trial
+        case 6; W.TriggerProfiles(stimTypes, 2) = 2; %control tactile, channel 2
+        case 7; W.TriggerProfiles(stimTypes, 1) = 11; %empty trial
     end
     
     for redLEDs = 1:3
@@ -210,7 +213,8 @@ for stimTypes = 1 : 6
             case 3; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %only tactile, channel 2
             case 4; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %vision1-tactile, channel 2
             case 5; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %vision2-tactile, channel 2
-            case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %red pulses only
+            case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %control tactile, channel 2
+            case 7; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %red pulses only
         end
     end
 end
@@ -413,9 +417,18 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
             % value for each laser to identify enabled wavelength.
             % 1 = red, 2 = cyan, 3 = violet.
             fwrite(handles.Arduino, [150 enableByte enableByte]);
+            
         end
     end
     
+    % check byte for valve signal
+    % switch lines for valve 1 and 2 through connected teensy (if present).
+    if cStim == 6 %use valve 2 if this is a tactile control trial. Otherwise, use valve 1
+        fwrite(handles.Arduino, [151 2]);
+    else
+        fwrite(handles.Arduino, [151 1]);
+    end
+            
     %identify case for grating texture
     temp = zeros(length(FlexNames),nrCases);
     for x = 1:length(FlexNames)

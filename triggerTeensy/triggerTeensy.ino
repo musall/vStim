@@ -3,27 +3,31 @@
   #################################################### */
 // TTL outputs
 // pins to create triggers
-#define PIN_TRIALTRIG 11 // trial-start trigger that can be switched by serial command 'MAKE_TRIALTRIGGER'
-#define PIN_STIMTRIG 12 // stimulus trigger that can be switched by serial command 'MAKE_STIMTRIGGER'
-#define PIN_CAMTRIG 13 // camera trigger that can be switched by serial command 'MAKE_CAMTRIGGER'
+#define PIN_TRIALTRIG 16 // trial-start trigger that can be switched by serial command 'MAKE_TRIALTRIGGER'
+#define PIN_STIMTRIG 15 // stimulus trigger that can be switched by serial command 'MAKE_STIMTRIGGER'
+#define PIN_CAMTRIG 14 // camera trigger that can be switched by serial command 'MAKE_CAMTRIGGER'
 
 // output for FISBA module 1
-#define PIN_GND_1 22 // make this the ground pin for laser 1
-#define PIN_RED_1 21 // trigger that is used to enable red (625nm) output from laser 1
-#define PIN_BLUE_1 20 // trigger that is used to enable violet (405nm) output from laser 1 - CARFEUL this is referred to as 'blue' in the FISBA nomenclature but really violet
-#define PIN_CYAN_1 19 // trigger that is used to enable cyan (488nm) output from laser 1 - CARFEUL this is referred to as 'green' in the FISBA nomenclature but its really more blue-ish and should be used for most optogenetics
+#define PIN_GND_1 5 // make this the ground pin for laser 1
+#define PIN_RED_1 2 // trigger that is used to enable red (625nm) output from laser 1
+#define PIN_CYAN_1 3 // trigger that is used to enable cyan (488nm) output from laser 1 - CARFEUL this is referred to as 'green' in the FISBA nomenclature but its really more blue-ish and should be used for most optogenetics
+#define PIN_BLUE_1 4 // trigger that is used to enable violet (405nm) output from laser 1 - CARFEUL this is referred to as 'blue' in the FISBA nomenclature but really violet
 
 // output for FISBA module 2
-#define PIN_GND_2 17 // make this the ground pin for laser 2
-#define PIN_RED_2 16 // trigger that is used to enable red (625nm) output from laser 2
-#define PIN_BLUE_2 15 // trigger that is used to enable violet (405nm) output from laser 2 - CARFEUL this is referred to as 'blue' in the FISBA nomenclature but really violet
-#define PIN_CYAN_2 14 // trigger that is used to enable cyan (488nm) output from laser 2 - CARFEUL this is referred to as 'green' in the FISBA nomenclature but its really more blue-ish and should be used for most optogenetics
+#define PIN_GND_2 22 // make this the ground pin for laser 2
+#define PIN_RED_2 21 // trigger that is used to enable red (625nm) output from laser 2
+#define PIN_CYAN_2 20 // trigger that is used to enable cyan (488nm) output from laser 2 - CARFEUL this is referred to as 'green' in the FISBA nomenclature but its really more blue-ish and should be used for most optogenetics
+#define PIN_BLUE_2 19 // trigger that is used to enable violet (405nm) output from laser 2 - CARFEUL this is referred to as 'blue' in the FISBA nomenclature but really violet
 
+// output for 2 valves (for airpuffs)
+#define PIN_VALVE_OUT_1 11 // trigger for valve 1
+#define PIN_VALVE_OUT_2 12 // trigger for valve 2
 
 // TTL inputs
 // pins to read potential enable triggers from
 #define PIN_ENABLE_1 8 // enable signal for laser 1
 #define PIN_ENABLE_2 9 // enable signal for laser 2
+#define PIN_VALVE_IN 17 // enable signal for valves
 
 /* #################################################
   ############## SERIAL COMMANDS ###################
@@ -35,6 +39,7 @@
 #define MAKE_CAMTRIGGER 103 // identifier to produce a trigger for video cameras
 #define STOP_CAMTRIGGER 104 // identifier to stop the trigger for video cameras
 #define CHANGE_ENABLETRIGGERS 150 // identifier to adjust trigger output lines (expects two subsequent bytes: a number between 1-3 to enable either red (1), cyan(2) or violet(3) output for each module
+#define CHANGE_VALVETRIGGERS 151 // identifier to adjust valve trigger output lines (expects one subsequent byte for valve1 (1), valve2 (2) or both (3))
 
 #define GOT_BYTE 10 // positive handshake for module_info
 #define GOT_TRIGGER 11 // positive handshake for trigger command
@@ -56,6 +61,7 @@ bool camTrigger = false;
 byte cByte = 0; // temporary variable for serial communication
 volatile int enable_1 = PIN_RED_1; //current enable line for laser module 1
 volatile int enable_2 = PIN_RED_2; //current enable line for laser module 2
+volatile int valveByte = 1; // which valve should be triggered in response to PIN_VALVE_IN
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
@@ -78,13 +84,17 @@ void setup() {
   pinMode(PIN_RED_2, OUTPUT);
   pinMode(PIN_BLUE_2, OUTPUT);
   pinMode(PIN_CYAN_2, OUTPUT); 
+  pinMode(PIN_VALVE_OUT_1, OUTPUT); 
+  pinMode(PIN_VALVE_OUT_2, OUTPUT);
 
   // Set pin modes for digital input lines
   pinMode(PIN_ENABLE_1, INPUT);
   pinMode(PIN_ENABLE_2, INPUT);
+  pinMode(PIN_VALVE_IN, INPUT);
 
   attachInterrupt(digitalPinToInterrupt(PIN_ENABLE_1), EnableChange_1, CHANGE); // interupt to create enable triggers
   attachInterrupt(digitalPinToInterrupt(PIN_ENABLE_2), EnableChange_2, CHANGE); // interupt to create enable triggers
+  attachInterrupt(digitalPinToInterrupt(PIN_VALVE_IN), ValveChange, CHANGE); // interupt to create valve triggers
 
 }
 
@@ -154,6 +164,18 @@ void loop() {
         midRead = false;
       }
     }
+    
+    if (FSMheader == CHANGE_VALVETRIGGERS) { // check which trigger lines should be used for valve 1 and 2
+      if (Serial.available() > 0){
+        
+        valveByte = Serial.read();
+        if (valveByte >= 1 && valveByte <= 3) {Serial.write(GOT_TRIGGER);} // valveByte needs to be between 1 and 3
+        else {valveByte = 0; Serial.write(DID_ABORT);}
+        
+        // done
+        midRead = false;
+      }
+    }
   }
 
   if (midRead && ((millis() - clocker) >= 1000)) {
@@ -202,5 +224,21 @@ void EnableChange_2() {
   }
   else {
       digitalWriteFast(enable_2, LOW);
+  }
+}
+
+
+void ValveChange() {
+  if (digitalReadFast(PIN_VALVE_IN)) {
+    if (valveByte == 1 || valveByte == 3){
+      digitalWriteFast(PIN_VALVE_OUT_1, HIGH);
+    }
+    if (valveByte == 2 || valveByte == 3){
+      digitalWriteFast(PIN_VALVE_OUT_2, HIGH);
+    }
+  }
+  else {
+      digitalWriteFast(PIN_VALVE_OUT_1, LOW);
+      digitalWriteFast(PIN_VALVE_OUT_2, LOW);
   }
 }  

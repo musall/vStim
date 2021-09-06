@@ -12,7 +12,8 @@ function vStim_MultimodalStim(handles)
 % Stimtype 6; audio-tactile, channel 1+2
 % Stimtype 7; vision-audio-tactile, channel 1+2
 % Stimtype 8; empty trial. writes one '0' to channel 0.
-%
+% Stimtype 9; control tactile stimulus. creates a tactile stimulus on a second valve that is not directed at the whisker pad.
+
 % Variables that begin with 'optoCases' identify cases where optogenetic
 % stimulation should be combiend with sensory stimulation. The values of
 % these variables identify the Stimtype for which an optogenetic
@@ -191,7 +192,7 @@ W.loadWaveform(11,0); %signal 11 is empty
 
 % create trigger profiles that match different stimype
 redCases = {[3 7] [5 8] [3 5 7 8]};
-for stimTypes = 1 : 8
+for stimTypes = 1 : 9
     switch stimTypes
         case 1 %only vision, no analog output needed
         case 2; W.TriggerProfiles(stimTypes, 1) = 1; %only audio, channel 1
@@ -201,6 +202,7 @@ for stimTypes = 1 : 8
         case 6; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %audio-tactile, channel 1+2
         case 7; W.TriggerProfiles(stimTypes, 1:2) = 1:2; %vision-audio-tactile, channel 1+2
         case 8; W.TriggerProfiles(stimTypes, 1) = 11; %empty trial
+        case 9; W.TriggerProfiles(stimTypes, 2) = 2; %tactile control trial, channel 2
     end
     
     for redLEDs = 1:3
@@ -221,6 +223,7 @@ for stimTypes = 1 : 8
             case 6; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redSignal]; %audio-tactile, channel 1+2
             case 7; W.TriggerProfiles(redLEDs*10 + stimTypes, [1:2 redCases{redLEDs}]) = [1:2 redSignal]; %vision-audio-tactile, channel 1+2
             case 8; W.TriggerProfiles(redLEDs*10 + stimTypes, redCases{redLEDs}) = redSignal; %red pulses only
+            case 9; W.TriggerProfiles(redLEDs*10 + stimTypes, [2 redCases{redLEDs}]) = [2 redSignal]; %tactile control trial, channel 2
         end
     end
 end
@@ -408,6 +411,14 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         end
     end
     
+    % check byte for valve signal
+    % switch lines for valve 1 and 2 through connected teensy (if present).
+    if cStim == 9 %use valve 2 if this is a tactile control trial. Otherwise, use valve 1
+        fwrite(handles.Arduino, [151 2]);
+    else
+        fwrite(handles.Arduino, [151 1]);
+    end
+            
     %identify case for grating texture
     temp = zeros(length(FlexNames),nrCases);
     for x = 1:length(FlexNames)
