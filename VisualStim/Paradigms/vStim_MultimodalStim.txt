@@ -18,6 +18,7 @@ sPulseGap              0.4
 sMakePuff              1
 sOptoRamp              0.5
 sOptoFreq              40
+sOptoPyramid           1
 sRedPowerOne              0.5
 sRedPowerTwo              0.5
 sRedSensoryPulses      1

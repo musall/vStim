@@ -21,6 +21,8 @@ function vStim_MultimodalStim(handles)
 %
 % Talk to Simon for more details.
 
+ignoreEmptyTrials = true; %flag to not produce trials where nothing is shown (Stimtype 8 without laser)
+
 %% Isolate all relevant variables from MainGUI
 StatNames = {}; FlexNames = {};
 StatVals = []; FlexVals = {};
@@ -89,6 +91,12 @@ for x = 1 : length(optoNames)
 end
 nrCases = size(BasicVarVals,2); %nr of possible 
 
+%% remove empty case without laser
+if ignoreEmptyTrials
+    useIdx = ~(BasicVarVals(stimIdx,:) == 8 & sum(BasicVarVals(end-length(optoNames)+1:end, :)) == 0);
+    BasicVarVals = BasicVarVals(:, useIdx);
+end
+
 %% make enough cases to match requested trialcount
 BasicVarVals = repmat(BasicVarVals,1,ceil(str2double(handles.NrTrials.String)/size(BasicVarVals,2))); %produce enough cases to cover all trials
 if handles.RandomTrials.Value %randomize order of trials in each block of cases
@@ -146,6 +154,7 @@ W.loadWaveform(1,noise * 5 * audioAmp); %signal 1 is auditory
 W.loadWaveform(2,puff * 5); %signal 2 is tactile
 
 % optogenetic stimulus
+optoPyramid = unique(BasicVarVals(ismember(BasicVarNames,'OptoPyramid'),:)); optoPyramid = optoPyramid(1); %flag to make excitatory pyramid instead of square wave stimuli
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
 optoRamp = unique(BasicVarVals(ismember(BasicVarNames,'OptoRamp'),:)); optoRamp = optoRamp(1); %duration of ramp after square wave
 optoFreq = unique(BasicVarVals(ismember(BasicVarNames,'OptoFreq'),:)); optoFreq = optoFreq(1); %frequency of square wave stimulus
@@ -177,8 +186,14 @@ redPulseSignals = [7 8]; %keep which signals are used for red pulses
 % W.loadWaveform(redPulseSignals(1), optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
 % W.loadWaveform(redPulseSignals(2), optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
 % ramp = 1/(analogRate*optoPulseDur) : 1/(analogRate*optoPulseDur) : 1;
-step = 1/round(analogRate*optoPulseDur/2);
-ramp = [step : step : 1 1 - step: -step : 0];
+
+if optoPyramid == 1
+    step = 1/round(analogRate*optoPulseDur/2);
+    ramp = [step : step : 1 1 - step: -step : 0] .* 3.3; %pyramid
+else
+    ramp = ones(1,round(analogRate*optoPulseDur)) .* 3.3; %square wave
+end
+
 W.loadWaveform(redPulseSignals(1), ramp * redPower1); %signal 7 is red ramp 1
 W.loadWaveform(redPulseSignals(2), ramp * redPower2); %signal 8 is red ramp 2
 
@@ -243,7 +258,7 @@ PsychDefaultSetup(1);
 screenNumber = max(Screen('Screens')); % Draw to the external screen if avaliable
 
 TrigSize = BasicVarVals(ismember(BasicVarNames,'VisTriggerSize'),1);
-Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference', 'SkipSyncTests', 1);
 Background = mean(BasicVarVals(ismember(BasicVarNames,'Background'),:))*255; %background color. 
 window = Screen('OpenWindow', screenNumber, Background); %open ptb window and save handle in pSettings
 % window = Screen('OpenWindow', screenNumber, Background, [0 0 TrigSize TrigSize]*2); %open ptb window and save handle in pSettings
