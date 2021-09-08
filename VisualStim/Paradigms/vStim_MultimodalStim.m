@@ -41,7 +41,7 @@ for iVars = 1:size(handles.FlexibleVariableNames.String,1)
 end
 
 %% isolate optogenetic cases and put in a separate category
-optoID = 'OptoCases'; %identifier
+optoID = {'OptoCases' 'RedPower' 'BluePower'}; %identifier
 idx1 = contains(StatNames, optoID); %find static optocases
 idx2 = contains(FlexNames, optoID); %find flexible optocases
 
@@ -77,16 +77,30 @@ BasicVarVals = [BasicVarVals; zeros(length(optoNames), size(BasicVarVals,2))];
 stimIdx = ismember(BasicVarNames, 'StimType'); %index for stimtype
 nonOptoCases = 1:size(BasicVarVals,2);
 for x = 1 : length(optoNames)
-    
-    % find cases and check if corresponding stimtype exists
-    if any(ismember(unique(optoVars{x}), unique(BasicVarVals(stimIdx,nonOptoCases))))
-        
-        %find all cases with matching stimtypes and duplicate
-        cIdx = ismember(BasicVarVals(stimIdx,nonOptoCases), unique(optoVars{x}));
-        newCases = BasicVarVals(:, nonOptoCases(cIdx));
-        newCases(size(newCases,1) - length(optoNames) + x, :) = 1;
-        
-        BasicVarVals = [BasicVarVals, newCases]; %add these to possible cases
+    if ~contains(optoNames{x}, {'RedPower' 'BluePower'})
+        % find cases and check if corresponding stimtype exists
+        if any(ismember(unique(optoVars{x}), unique(BasicVarVals(stimIdx,nonOptoCases))))
+            
+            %find all cases with matching stimtypes and duplicate
+            cIdx = ismember(BasicVarVals(stimIdx,nonOptoCases), unique(optoVars{x}));
+            newCases = BasicVarVals(:, nonOptoCases(cIdx));
+            newCases(size(newCases,1) - length(optoNames) + x, :) = 1;
+            
+            % check for optoPower
+            switch optoNames{x}
+                case 'BlueOne'; powerIdx = find(contains(optoNames, 'BluePowerOne'));
+                case 'RedOne';  powerIdx = find(contains(optoNames, 'RedPowerOne'));
+                case 'BlueTwo'; powerIdx = find(contains(optoNames, 'BluePowerTwo'));
+                case 'RedTwo';  powerIdx = find(contains(optoNames, 'RedPowerTwo'));
+            end
+            
+            powerVals = optoVars{powerIdx}; %amplitudes for current laser
+            newCases = repmat(newCases, 1, length(powerVals)); %make more new cases if there is more than one amplitude
+            powerVals = repmat(powerVals, size(newCases,2)/length(powerVals),1);
+            newCases(size(newCases,1) - length(optoNames) + powerIdx, :) = powerVals(:); %asign amplitude to new cases
+            
+            BasicVarVals = [BasicVarVals, newCases]; %add these to possible cases
+        end
     end
 end
 nrCases = size(BasicVarVals,2); %nr of possible 
@@ -158,14 +172,14 @@ optoPyramid = unique(BasicVarVals(ismember(BasicVarNames,'OptoPyramid'),:)); opt
 optoDur = unique(BasicVarVals(ismember(BasicVarNames,'OptoDur'),:)); optoDur = optoDur(1); %duration of optogenetic stimulus
 optoRamp = unique(BasicVarVals(ismember(BasicVarNames,'OptoRamp'),:)); optoRamp = optoRamp(1); %duration of ramp after square wave
 optoFreq = unique(BasicVarVals(ismember(BasicVarNames,'OptoFreq'),:)); optoFreq = optoFreq(1); %frequency of square wave stimulus
-redPower1 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerOne'),:)); %power of red laser 1
+redPower1 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerOne'),:)); redPower1 = redPower1(1); %power of red laser 1
 redPower2 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerTwo'),:)); redPower2 = redPower2(1); %power of red laser 2
 bluePower1 = unique(BasicVarVals(ismember(BasicVarNames,'BluePowerOne'),:)); bluePower1 = bluePower1(1); %power of blue laser 1
 bluePower2 = unique(BasicVarVals(ismember(BasicVarNames,'BluePowerTwo'),:)); bluePower2 = bluePower2(1); %power of blue laser 2
-redPower1 = max([min([redPower1(1),1]), 0]); %make its one value between 0 and 1
-redPower2 = max([min([redPower2(1),1]), 0]); %make its one value between 0 and 1
-bluePower1 = max([min([bluePower1(1),1]), 0]); %make its one value between 0 and 1
-bluePower2 = max([min([bluePower2(1),1]), 0]); %make its one value between 0 and 1
+redPower1 = max([min([redPower1(1),1]), 0]).* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+redPower2 = max([min([redPower2(1),1]), 0]).* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+bluePower1 = max([min([bluePower1(1),1]), 0]).* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+bluePower2 = max([min([bluePower2(1),1]), 0]).* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
 
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, optoRamp); %get waveforms for optogenetics
 optoStim = optoStim .* 3.3; %scale to 3.3V output
@@ -182,20 +196,16 @@ blueSeqSignals = [5 6]; %keep which signals are used for blue sequences
 W.loadWaveform(5,optoStim(2,:) * bluePower1); %signal 5 is blue 1
 W.loadWaveform(6,optoStim(2,:) * bluePower2); %signal 6 is blue 2
 
-redPulseSignals = [7 8]; %keep which signals are used for red pulses
-% W.loadWaveform(redPulseSignals(1), optoStim(1,1: optoPulseDur * analogRate) * redPower1); %signal 7 is red pulse 1
-% W.loadWaveform(redPulseSignals(2), optoStim(1,1: optoPulseDur * analogRate) * redPower2); %signal 8 is red pulse 2
-% ramp = 1/(analogRate*optoPulseDur) : 1/(analogRate*optoPulseDur) : 1;
-
 if optoPyramid == 1
     step = 1/round(analogRate*optoPulseDur/2);
-    ramp = [step : step : 1 1 - step: -step : 0] .* 3.3; %pyramid
+    pyraPulse = [step : step : 1 1 - step: -step : 0]; %pyramid
 else
-    ramp = ones(1,round(analogRate*optoPulseDur)) .* 3.3; %square wave
+    pyraPulse = ones(1,round(analogRate*optoPulseDur)); %square wave
 end
 
-W.loadWaveform(redPulseSignals(1), ramp * redPower1); %signal 7 is red ramp 1
-W.loadWaveform(redPulseSignals(2), ramp * redPower2); %signal 8 is red ramp 2
+redPulseSignals = [7 8]; %keep which signals are used for red pulses
+W.loadWaveform(redPulseSignals(1), pyraPulse * redPower1); %signal 7 is red pulse or pyramid 1
+W.loadWaveform(redPulseSignals(2), pyraPulse * redPower2); %signal 8 is red pulse or pyramid 2
 
 seqEnable = 9; %keep which signal is used to enable lasers sequence
 W.loadWaveform(seqEnable,ones(1,size(optoStim,2)) .* 3.3); %signal 9 is enable trigger
@@ -389,24 +399,53 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     cStim = BasicVarVals(ismember(BasicVarNames,'StimType'),cTrial); %get stimtype
     visualOn = ismember(cStim, [1 4 5 7]); %flag to present visual stimulus
     
+    % get laser power
+    redPower1 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerOne'),cTrial)); %power of red laser 1
+    redPower1 = max([min([redPower1(1),1]), 0]) .* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+    redPower2 = unique(BasicVarVals(ismember(BasicVarNames,'RedPowerTwo'),cTrial)); %power of red laser 2
+    redPower2 = max([min([redPower2(1),1]), 0]) .* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+    bluePower1 = unique(BasicVarVals(ismember(BasicVarNames,'BluePowerOne'),cTrial)); %power of blue laser 1
+    bluePower1 = max([min([bluePower1(1),1]), 0]) .* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+    bluePower2 = unique(BasicVarVals(ismember(BasicVarNames,'BluePowerTwo'),cTrial)); %power of blue laser 2
+    bluePower2 = max([min([bluePower2(1),1]), 0]) .* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
+    
     % get current optocase and determine analog outputs
-    RedSensoryPulses = unique(BasicVarVals(ismember(BasicVarNames,'RedSensoryPulses'),cStim));
+    RedSensoryPulses = unique(BasicVarVals(ismember(BasicVarNames,'RedSensoryPulses'),cTrial));
     cOptoVals = BasicVarVals(ismember(BasicVarNames,optoNames),cTrial)>0; %get active optogenetic cases
     optoOut = []; %optogenetic output profile
     if ~isempty(optoNames(cOptoVals))
         switch optoNames{cOptoVals}
-            case 'RedOne'; optoOut = 51;  %red laser on location 1
-            case 'BlueOne'; optoOut = 52; %blue laser on location 1
-            case 'RedTwo'; optoOut = 53; %red laser on location 2
-            case 'BlueTwo'; optoOut = 54; %blue laser on location 2
-            case 'RedBoth'; optoOut = 55; %red laser on location 1 and 2
-            case 'BlueBoth'; optoOut = 56; %blue laser on location 1 and 2
+            case 'RedOne'
+                optoOut = 51;  %red laser on location 1
+                W.loadWaveform(3,optoStim(1,:) * redPower1); %signal 3 is red 1 
+            case 'BlueOne'
+                optoOut = 52; %blue laser on location 1
+                W.loadWaveform(5,optoStim(2,:) * bluePower1); %signal 5 is blue 1
+            case 'RedTwo'
+                optoOut = 53; %red laser on location 2
+                W.loadWaveform(4,optoStim(1,:) * redPower2); %signal 4 is red 2
+            case 'BlueTwo'
+                optoOut = 54; %blue laser on location 2
+                W.loadWaveform(6,optoStim(2,:) * bluePower2); %signal 6 is blue 2
+            case 'RedBoth'
+                optoOut = 55; %red laser on location 1 and 2
+                W.loadWaveform(3,optoStim(1,:) * redPower1); %signal 3 is red 1 
+                W.loadWaveform(4,optoStim(1,:) * redPower2); %signal 4 is red 2
+            case 'BlueBoth'
+                optoOut = 56; %blue laser on location 1 and 2
+                W.loadWaveform(5,optoStim(2,:) * bluePower1); %signal 5 is blue 1
+                W.loadWaveform(6,optoStim(2,:) * bluePower2); %signal 6 is blue 2
         end
         if RedSensoryPulses
             switch optoNames{cOptoVals}
-                case 'RedOne'; optoOut = []; cStim = cStim + 10; %red laser on location 1 but with sensory stimuli
+                case 'RedOne'
+                    optoOut = []; cStim = cStim + 10; %red laser on location 1 but with sensory stimuli
+                    W.loadWaveform(redPulseSignals(1), pyraPulse * redPower1); %signal 7 is red pulse or pyramid 1
                 case 'RedTwo'; optoOut = []; cStim = cStim + 20; %red laser on location 2  but with sensory stimuli
+                    W.loadWaveform(redPulseSignals(2), pyraPulse * redPower2); %signal 8 is red pulse or pyramid 2
                 case 'RedBoth'; optoOut = []; cStim = cStim + 30; %red laser on location 1 and 2 but with sensory stimuli
+                    W.loadWaveform(redPulseSignals(1), pyraPulse * redPower1); %signal 7 is red pulse or pyramid 1
+                    W.loadWaveform(redPulseSignals(2), pyraPulse * redPower2); %signal 8 is red pulse or pyramid 2
             end
         end
         
