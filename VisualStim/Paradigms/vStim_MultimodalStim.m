@@ -122,7 +122,7 @@ if handles.RandomTrials.Value %randomize order of trials in each block of cases
 end
 
 %% load stimuli to analog output module
-W = handles.WavePlayer;
+W = BpodWavePlayer(handles.WavePlayerPort);
 W.OutputRange = '-5V:5V'; % make sure output range is correct
 W.TriggerMode = 'Master';
 W.TriggerProfileEnable = 'On'; % use trigger profiles to produce different waveforms across channels
