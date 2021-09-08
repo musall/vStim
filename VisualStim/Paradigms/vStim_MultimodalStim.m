@@ -182,7 +182,6 @@ bluePower1 = max([min([bluePower1(1),1]), 0]).* 3.3; %make sure its a value betw
 bluePower2 = max([min([bluePower2(1),1]), 0]).* 3.3; %make sure its a value between 0 and 1 and mulitply with 3.3V
 
 optoStim = vStim_getOptoStim(analogRate, optoDur, optoRamp, optoFreq, optoRamp); %get waveforms for optogenetics
-optoStim = optoStim .* 3.3; %scale to 3.3V output
 % make sure pluse duration is a divider of optoFreq when using pulsed stimuli
 % optoPulseDur = ceil(pulseDur / (1/optoFreq)) * (1/optoFreq);
 optoPulseDur = pulseDur;
@@ -260,8 +259,6 @@ W.TriggerProfiles(53, [5 8]) = [redSeqSignals(2), seqEnable]; %red laser on loca
 W.TriggerProfiles(54, [6 8]) = [blueSeqSignals(2), seqEnable]; %blue laser on location 2 (BlueTwo)
 W.TriggerProfiles(55, [3 5 7 8]) = [redSeqSignals, seqEnable, seqEnable]; %red laser on location 1+2 (RedBoth)
 W.TriggerProfiles(56, [4 6 7 8]) = [blueSeqSignals, seqEnable, seqEnable]; %blue laser on location 1+2 (BlueBoth)
-
-handles.WavePlayer = W; %make sure this is the same
 
 %% initialize Psychtoolbox and open screen
 PsychDefaultSetup(1);
@@ -596,12 +593,12 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
         
         % trigger analog stimuli if needed
         if trigerAnalog
-            handles.WavePlayer.play(cStim); %output sensory stimuli
+            W.play(cStim); %output sensory stimuli
             trigerAnalog = false;
         end
         
         if cTime >= optoStart && ~isempty(optoOut)
-            handles.WavePlayer.play(optoOut);
+            W.play(optoOut);
             optoOut = []; %dont trigger again this trial
         end
         
@@ -625,7 +622,8 @@ function timeStamps = RunTrial(cTrial) % Animate drifting gradients
     Screen('Flip', window);
     
     %stop analog output
-    handles.WavePlayer.stop;
+    W.stop;
+    clear W
     
     % stop camera trigger after sequence is over
     fwrite(handles.Arduino, handles.stopCamByte)
