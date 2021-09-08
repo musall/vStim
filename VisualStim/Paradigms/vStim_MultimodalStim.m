@@ -103,13 +103,13 @@ for x = 1 : length(optoNames)
         end
     end
 end
-nrCases = size(BasicVarVals,2); %nr of possible 
 
 %% remove empty case without laser
 if ignoreEmptyTrials
     useIdx = ~(BasicVarVals(stimIdx,:) == 8 & sum(BasicVarVals(end-length(optoNames)+1:end, :)) == 0);
     BasicVarVals = BasicVarVals(:, useIdx);
 end
+nrCases = size(BasicVarVals,2); %nr of possible cases
 
 %% make enough cases to match requested trialcount
 BasicVarVals = repmat(BasicVarVals,1,ceil(str2double(handles.NrTrials.String)/size(BasicVarVals,2))); %produce enough cases to cover all trials
