@@ -76,10 +76,11 @@ BasicVarVals = [BasicVarVals; zeros(length(optoNames), size(BasicVarVals,2))];
 %% add specific optogenetic cases
 stimIdx = ismember(BasicVarNames, 'StimType'); %index for stimtype
 nonOptoCases = 1:size(BasicVarVals,2);
+stimTypes = unique(BasicVarVals(stimIdx,nonOptoCases));
 for x = 1 : length(optoNames)
     if ~contains(optoNames{x}, {'RedPower' 'BluePower'})
         % find cases and check if corresponding stimtype exists
-        if any(ismember(unique(optoVars{x}), unique(BasicVarVals(stimIdx,nonOptoCases))))
+        if any(ismember(unique(optoVars{x}), stimTypes))
             
             %find all cases with matching stimtypes and duplicate
             cIdx = ismember(BasicVarVals(stimIdx,nonOptoCases), unique(optoVars{x}));
@@ -92,13 +93,23 @@ for x = 1 : length(optoNames)
                 case 'RedOne';  powerIdx = find(contains(optoNames, 'RedPowerOne'));
                 case 'BlueTwo'; powerIdx = find(contains(optoNames, 'BluePowerTwo'));
                 case 'RedTwo';  powerIdx = find(contains(optoNames, 'RedPowerTwo'));
+                case 'RedBoth';  powerIdx = find(contains(optoNames, {'RedPowerOne', 'RedPowerTwo'}));
+                case 'BlueBoth';  powerIdx = find(contains(optoNames, {'BluePowerOne', 'BluePowerTwo'}));
             end
             
-            powerVals = optoVars{powerIdx}; %amplitudes for current laser
-            newCases = repmat(newCases, 1, length(powerVals)); %make more new cases if there is more than one amplitude
-            powerVals = repmat(powerVals, size(newCases,2)/length(powerVals),1);
-            newCases(size(newCases,1) - length(optoNames) + powerIdx, :) = powerVals(:); %asign amplitude to new cases
-            
+            if length(powerIdx) == 1
+                powerVals = optoVars{powerIdx}; %amplitudes for current laser
+                newCases = repmat(newCases, 1, length(powerVals)); %make more new cases if there is more than one amplitude
+                powerVals = repmat(powerVals, size(newCases,2)/length(powerVals),1);
+                newCases(size(newCases,1) - length(optoNames) + powerIdx, :) = powerVals(:); %asign amplitude to new cases
+            else
+                clear powerVals
+                newCases = repmat(newCases, 1, 1); %make one more new case
+                for y = 1 : length(powerIdx)
+                    powerVals = optoVars{powerIdx(y)}(1); %amplitudes for current laser
+                    newCases(size(newCases,1) - length(optoNames) + powerIdx(y), :) = powerVals; %asign amplitude to new cases
+                end
+            end
             BasicVarVals = [BasicVarVals, newCases]; %add these to possible cases
         end
     end

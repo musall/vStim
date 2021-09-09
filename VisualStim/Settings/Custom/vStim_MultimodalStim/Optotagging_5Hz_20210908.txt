@@ -22,7 +22,7 @@ sRedSensoryPulses      1
 sBluePowerOne          0.5
 sBluePowerTwo          0.6
 sAnalogRate            10000
-fPulseDur              [0.0005 0.02]
+fPulseDur              0.0005
 sStimType              8
 sOptoCasesBlueOne      0
 sOptoCasesBlueTwo      0
@@ -30,5 +30,5 @@ sOptoCasesRedOne       8
 sOptoCasesRedTwo       8
 sOptoCasesBlueBoth     0
 sOptoCasesRedBoth      0
-fRedPowerOne           [0.1 0.2 0.3 0.4 0.5 0.6]
-fRedPowerTwo           [0.1 0.2 0.3 0.4 0.5 0.6]
+fRedPowerOne           0.1
+fRedPowerTwo           0.1
