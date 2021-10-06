@@ -273,7 +273,7 @@ function [timeStamps,barShift,FrameCounts] = RunTrial(cTrial)
     cTime = Screen('Flip', window);
     
     % stop camera trigger after sequence
-    if Cnt == 1 && ~isempty(handles.Arduino)
+    if ~isempty(handles.Arduino)
         fwrite(handles.Arduino, handles.stopCamByte)
     end
         
